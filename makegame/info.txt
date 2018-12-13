@@ -90,18 +90,47 @@ morphengine.py:
     используются следующие файлы:
         vertices                vertices/@character.name+"_verts.json"
         expressions             expressions_morphs/@character.name+"_exprs.json"
-        morphs                  morphs/@character.name+"_morphs.json"
+        morph                   morphs/@character.name+"_morphs.json"
         extra_morph             morphs/@character.morphs_extra_file
-        shared_morphs           morphs/@character.shared_morphs_file
-        shared_morphs_extra     morphs/@character.shared_morphs_extra_file
+        shared_morph            morphs/@character.shared_morphs_file
+        shared_morph_extra      morphs/@character.shared_morphs_extra_file
         bodies                  antropometry/@character.proportions_folder
         measures                measures/@character.measures_file
         bounding_box            bboxes/@character.bounding_boxes_file
 
-85: humanoid.measures_database_exis = isdir(bodies) & isfile(measures)
-106:humanoid.base_form = vertices/@character.name+"_verts.json"
+85: humanoid.morph_engine.measures_database_exis = isdir(bodies) & isfile(measures)
+106:humanoid.morph_engine.base_form = vertices/@character.name+"_verts.json"
+
+    дальше начинается какой-то пиздец. сука блядь
+    что ж ты изверг наворотил своими граблями.
+
+    self.load_morphs_database(self.shared_morph_data_path)
+    self.load_morphs_database(self.morph_data_path)
+    self.load_morphs_database(self.extra_morph_data_path) #Call this after the loading of shared morph is important for overwrite data.
+    if self.shared_morph_extra_data_path:
+        self.load_morphs_database(self.shared_morph_extra_data_path)
+    self.load_morphs_database(self.expressions_path)
+
+163:m_data = {morphs/@character.shared_morphs_file,
+              morphs/@character.name+"_morphs.json",
+              morphs/@character.morphs_extra_file,
+              morphs/@character.shared_morphs_extra_file};
+
+    добавляются данные:
+    humanoid.morph_engine.morph_data[name]=vector{i,x,y,z}
+    humanoid.morph_engine.morph_values[name]=0.0
+    humanoid.morph_engine.morph_modified_verts=set{i}
+
+114:self.load_bboxes_database(self.bounding_box_path)
+    FIXME: add bboxes!!!
+
+115:self.load_measures_database(self.measures_data_path)
 
 
+
+117:
+
+humanoid.py:
 296:obj.name состоит из нескольких частей, разделенных _:
     if (obj.name[0][0...3] not in "BasisAsymTest")
         obj.name[0] может быть "Basi"(s?)|"Asym"|"Test"
