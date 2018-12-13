@@ -1,0 +1,12 @@
+#ifndef DOCUMENTS_GLOBAL_H
+#define DOCUMENTS_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(DOCUMENTS_LIBRARY)
+#  define DOCUMENTSSHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define DOCUMENTSSHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // DOCUMENTS_GLOBAL_H
