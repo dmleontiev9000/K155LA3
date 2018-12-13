@@ -21,6 +21,7 @@ character:
     proportions_folder: ????
     presets_folder:     ????
     measures_file:      ????
+    bounding_boxes_file:????
     joints_base_file:   анимация
     joints_offset_file: анимация
     transformations_file:анимация
@@ -82,6 +83,25 @@ humanoid.py:
     humanoid.morph_engine = MorphingEngine(obj.name, @character);
     humanoid.mat_engine = MaterialEngine(obj.name, @character);
 
+morphengine.py:
+25: humanoid.morph_engine.obj_name=obj.name;
+    humanoid.morph_engine.final_form=[]
+    humanoid.morph_engine.cache_form=[]
+    используются следующие файлы:
+        vertices                vertices/@character.name+"_verts.json"
+        expressions             expressions_morphs/@character.name+"_exprs.json"
+        morphs                  morphs/@character.name+"_morphs.json"
+        extra_morph             morphs/@character.morphs_extra_file
+        shared_morphs           morphs/@character.shared_morphs_file
+        shared_morphs_extra     morphs/@character.shared_morphs_extra_file
+        bodies                  antropometry/@character.proportions_folder
+        measures                measures/@character.measures_file
+        bounding_box            bboxes/@character.bounding_boxes_file
+
+85: humanoid.measures_database_exis = isdir(bodies) & isfile(measures)
+106:humanoid.base_form = vertices/@character.name+"_verts.json"
+
+
 296:obj.name состоит из нескольких частей, разделенных _:
     if (obj.name[0][0...3] not in "BasisAsymTest")
         obj.name[0] может быть "Basi"(s?)|"Asym"|"Test"
@@ -93,15 +113,16 @@ humanoid.py:
 310:AAA_BBB это модификатор, он добавляется в категорию.
     сука что за бред!
     humanoid.categories[AAA]=HumanCategory(AAA)
-    humanoid.categories[AAA].modifier[AAA_BBB]=HumanModifier(AAA_BBB, obj.name)
+    humanoid.categories[AAA].modifiers[]=HumanModifier(AAA_BBB, obj.name)
 
 316:obj.name это на самом деле AAA_B1-B2-Bn_CCC
     prop[n]=AAA_Bn
     они добавляются в modifier
     humanoid.categories[AAA]=HumanCategory(AAA)
-    humanoid.categories[AAA].modifier[AAA_BBB]=HumanModifier(AAA_BBB, obj.name)
-    humanoid.categories[AAA].modifier[AAA_BBB].prop[AAA_Bn]=????
+    humanoid.categories[AAA].modifiers[]=HumanModifier(AAA_BBB, obj.name)
+    humanoid.categories[AAA].modifiers[AAA_BBB].properties[]=AAA_Bn;
     humanoid.character_data[AAA_Bn]=0.5
 
+    что это за безумная хуйня?????
 
 
