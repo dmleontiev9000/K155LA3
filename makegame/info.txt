@@ -1,0 +1,107 @@
+Как работает manuelbastionlab:
+
+Все виды гуманоидов описываются двумя категориями:
+templates и characters
+
+template:
+    label:              название шаблона
+    description:        текст с описанием
+    name:               общая часть названий файлов
+    template_model:     ????
+    template_polygons:  ????
+character:
+    label:              название шаблона
+    description:        текст с описанием
+    name:               общая часть названий файлов
+    texture_diffuse:    текстура
+    texture_displacement:текстура
+    morphs_extra_file,
+    shared_morphs_file,
+    shared_morphs_extra_file: морфы
+    proportions_folder: ????
+    presets_folder:     ????
+    measures_file:      ????
+    joints_base_file:   анимация
+    joints_offset_file: анимация
+    transformations_file:анимация
+    vertexgroup_base_file:анимация
+    vertexgroup_muscle_file:анимация
+
+__init__.py:
+38: В начале она создает объект Humanoid,
+72: и пытается найти в сцене блендера данные своего объекта.
+    если нашла, использует их, если не нашла, создает заново
+
+80: мы ничего не знаем про блендер, поэтому у нас будет
+    is_obj[0] = "NO_OBJ"
+81: хз откуда она берет character_identifier, но он должен
+    содержаться в characters_config.json:"character_list"
+
+    данные гуманоида сохраняются в
+    mblab_humanoid.characters_config[character_identifier]
+    поэтому мы будем использовать @character как конкретную
+    конфигурация
+
+82: obj = algorithms.import_object_from_lib(lib_filepath, base_model_name, character_identifier)
+    использует @character.template_model, @character
+
+83: для инициализации гуманоида будут использоваться следующие
+    параметры:
+
+    rigging_type = enum {base, ik, muscle, muscle_ik}
+        для muscle требуется character.vertexgroup_muscle_file
+        для ik требуется character.joints_offset_file
+    obj.name         = ????
+    obj.manuellab_id = @character
+    obj.manuellab_rig= @rigging_type
+
+algorithms.py:
+1390:import_object_from_lib(lib_filepath, name, final_name = None, stop_import = True):
+    import_object_from_lib(@character.template_model, @character)
+    вызывает
+1403:append_object_from_library(lib_filepath, [name])
+    append_object_from_library([@character.template_model])
+
+1416:походу оно пытается из блендеровского файла загрузить данные о
+    уже добавленых объектах. пусть у нас нет блендеровского файла
+
+    будем считать что ничего тут не добавится
+__init__.py
+88: тогда мы ничего не загрузим и тут,
+97: и придём вот сюда.
+    mblab_humanoid.init_database(obj,character_identifier,rigging_type)
+humanoid.py:
+183:init_database(self,obj,character_identifier,rigging_type):
+    obj.name         = ???? (from blender file)
+    obj.manuellab_id = @character
+    obj.manuellab_rig= @rigging_type
+    character_identifier=@character
+    rigging_type     = @rigging_type
+
+    humanoid.sk_engine = SkeletonEngine(obj, @character, @rigging_type);
+    humanoid.morph_engine = MorphingEngine(obj.name, @character);
+    humanoid.mat_engine = MaterialEngine(obj.name, @character);
+
+296:obj.name состоит из нескольких частей, разделенных _:
+    if (obj.name[0][0...3] not in "BasisAsymTest")
+        obj.name[0] может быть "Basi"(s?)|"Asym"|"Test"
+        при этом функция init_character_data ничего не делает
+302:obj.name состоит из трех частей: AAA_BBB_CCC
+    AAA = имя категории. если его нет, оно добавляется в
+    humanoid.categories[AAA]=HumanCategory(AAA)
+
+310:AAA_BBB это модификатор, он добавляется в категорию.
+    сука что за бред!
+    humanoid.categories[AAA]=HumanCategory(AAA)
+    humanoid.categories[AAA].modifier[AAA_BBB]=HumanModifier(AAA_BBB, obj.name)
+
+316:obj.name это на самом деле AAA_B1-B2-Bn_CCC
+    prop[n]=AAA_Bn
+    они добавляются в modifier
+    humanoid.categories[AAA]=HumanCategory(AAA)
+    humanoid.categories[AAA].modifier[AAA_BBB]=HumanModifier(AAA_BBB, obj.name)
+    humanoid.categories[AAA].modifier[AAA_BBB].prop[AAA_Bn]=????
+    humanoid.character_data[AAA_Bn]=0.5
+
+
+
