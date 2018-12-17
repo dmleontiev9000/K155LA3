@@ -46,6 +46,35 @@ __init__.py:
 82: obj = algorithms.import_object_from_lib(lib_filepath, base_model_name, character_identifier)
     использует @character.template_model, @character
 
+algoritms.py:
+1390:сразу идет сюда:
+    append_object_from_library(lib_filepath, [@character.template_model])
+1416:попробуем прикинуть на примере какого-нибудь characterа f_ca01
+    это будет "template_model": "MBLab_human_female"
+    и сука ж ты блядь, оно походу в блендеровском файле,
+    потому что я его не вижу в упор в других файлах.
+
+    suffix = None, поэтому
+
+    with bpy.data.libraries.load(lib_filepath) as (data_from, data_to):
+        names_to_append = obj_names
+        data_to.objects = [name for name in names_to_append if name in data_from.objects]
+
+    name for name if name хуями. ёбаные питоньи ребусы.
+
+    [ expression for item in list if conditional ]
+    This is equivalent to:
+    for item in list:
+        if conditional:
+            expression
+
+    for(name in names_to_append):
+        if (name in data_from.objects):
+            data_to.objects.append(name)
+
+1431:далее что-то там линкуют. возвращаются в прошлу функцию и там возвращают
+
+__init.py__:
 83: для инициализации гуманоида будут использоваться следующие
     параметры:
 
@@ -97,8 +126,15 @@ morphengine.py:
         bodies                  antropometry/@character.proportions_folder
         measures                measures/@character.measures_file
         bounding_box            bboxes/@character.bounding_boxes_file
+        presets                 presets/@character.presets_folder
 
 85: humanoid.morph_engine.measures_database_exis = isdir(bodies) & isfile(measures)
+105:init_final_form()
+    humanoid.morph_engine.final_form <== obj.data.co.copy()
+    obj=bpy.data.objects[obj.name]
+
+    что-то попахивает пиздецом.
+
 106:humanoid.morph_engine.base_form = vertices/@character.name+"_verts.json"
 
     дальше начинается какой-то пиздец. сука блядь
@@ -125,10 +161,28 @@ morphengine.py:
     FIXME: add bboxes!!!
 
 115:self.load_measures_database(self.measures_data_path)
+153:humanoid.morph_engine ........ measures/@character.measures_file
+    .measures_data          =      .["measures"];
+    .measures_relat_data    =      .["relations"];
+    .measures_score_weights =      .["score_weights"];
+    .body_height_Z_parts    =      .["body_height_Z_parts"]
+
+117:self.calculate_measures()
+197:for(x in .measures_data)
+        indices = x[];
+        axis    = nameof(x).last();
+207:и дальше просто складываем длины либо вдоль осей либо по длине.
+    (algorithms.py:94)
 
 
 
-117:
+    p1 = round(measures["buttock_girth"]/measures["body_height_Z"],4)
+    p2 = round(measures["chest_girth"]/measures["body_height_Z"],4)
+    p3 = round(measures["waist_girth"]/measures["body_height_Z"],4)
+    p4 = round(measures["upperarm_axillary_girth"]/measures["body_height_Z"],4)
+    p5 = round(measures["upperleg_top_girth"]/measures["body_height_Z"],4)
+    humanoid.morph_engine.proportion_index = [p1,p2,p3,p4,p5]
+
 
 humanoid.py:
 296:obj.name состоит из нескольких частей, разделенных _:
