@@ -59,4 +59,18 @@ defineTest(syntaxTest) {
         }
     }
 }
-
+# copies the given files to the destination directory
+# copyToDestDir(files, dir, depends
+defineReplace(copyToDestDir) {
+    # replace slashes in destination path for Windows
+    output = ""
+    for(file, $$1) {
+        target_name  = $$file
+        target_name ~= s,\.,_,g
+        output += "$$target_name"".target=$$file"$$escape_expand("\n")
+        output += "$$target_name"".depends=$$3"$$escape_expand("\n")
+        output += "$$target_name"".commands=$$QMAKE_COPY $$shell_quote($$PWD/$$file) $$shell_quote($$2)"$$escape_expand("\n")
+        output += "QMAKE_EXTRA_TARGETS+=$$target_name"$$escape_expand("\n")
+    }
+    return($$output)
+}
