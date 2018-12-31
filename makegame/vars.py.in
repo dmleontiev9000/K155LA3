@@ -1,0 +1,2 @@
+inputdir = $$IMPORT_IN;
+outputdir = $$IMPORT_OUT;

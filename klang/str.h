@@ -11,91 +11,6 @@ namespace Lang {
 namespace Internal {
 
 enum {
-    TOKEN_INVALID,
-    TOKEN_ERROR,
-    TOKEN_LBR,     //(
-    TOKEN_RBR,     //)
-    TOKEN_LIDX,    //[
-    TOKEN_RIDX,    //]
-    TOKEN_COMMA,   //,
-    TOKEN_DOT,     //.
-    TOKEN_DOT3,    //...
-    TOKEN_IDENT,   //bla_4
-    TOKEN_INT,     //0x213, 50
-    TOKEN_FLOAT,   //1.34f
-    TOKEN_SC,      //:
-    TOKEN_SC2,     //::
-    TOKEN_STR1,    //'aaa'
-    TOKEN_STR2,    //"aaa"
-    TOKEN_ASSIGN,  //=
-    TOKEN_OPERATOR,//+ - *= == (but not =)
-    
-    //keywords
-    KEYWORD_CONST,//+
-    KEYWORD_VOLATILE,//+
-    KEYWORD_STATIC,//+
-    KEYWORD_FINAL,
-    KEYWORD_MUTABLE,
-    KEYWORD_VIRTUAL,
-
-    KEYWORD_IN,
-    KEYWORD_OUT,
-    KEYWORD_INOUT,
-
-    KEYWORD_INT,
-    KEYWORD_UINT,
-    KEYWORD_BITVEC,
-    KEYWORD_TYPE,
-    KEYWORD_THIS,//+
-
-    KEYWORD_PRIVATE,//+
-    KEYWORD_PUBLIC,//+
-    KEYWORD_PROTECTED,//+
-
-    KEYWORD_ENUM,//+
-    KEYWORD_FLAGS,//+
-    KEYWORD_TYPEDEF,
-    KEYWORD_NAMESPACE,//+
-    KEYWORD_STRUCT,//+
-    KEYWORD_CLASS,//+
-
-    KEYWORD_CONSTRUCTOR,//+
-    KEYWORD_DESTRUCTOR,//+
-    KEYWORD_OPERATOR,//+
-    KEYWORD_OPERATOR_MEM,
-    KEYWORD_OPERATOR_POST,
-    KEYWORD_OPERATOR_PREF,
-    KEYWORD_NEW,
-    KEYWORD_DELETE,
-    KEYWORD_MOVE,
-    KEYWORD_COPY,
-    KEYWORD_PROPERTY,
-    KEYWORD_FUNCTION,
-    KEYWORD_RETURN,//+
-    KEYWORD_VAR,//+
-    KEYWORD_SLOT,
-    KEYWORD_SIGNAL,
-
-    KEYWORD_SIZEOF,
-    KEYWORD_TYPEOF,
-    KEYWORD_OFFSETOF,
-    KEYWORD_ALIGNOF,
-
-    KEYWORD_ASSERT,
-
-    KEYWORD_IF,//+
-    KEYWORD_ELSE,//+
-    
-    KEYWORD_FOR,//+
-    KEYWORD_WHILE,//+
-    KEYWORD_BREAK,//+
-    KEYWORD_CONTINUE,//+
-
-    KEYWORD_SWITCH,//+
-    KEYWORD_CASE,//+
-    KEYWORD_DEFAULT,//+
-};
-enum {
     COLOR_DEFAULT=0,
     COLOR_BAD,
 
@@ -117,9 +32,6 @@ enum {
     UNUSED     =0x080,
 };
 
-struct KW { uint len; uint first; const char * text; uint result; };
-#define _KW(xxxxx, yyyyy) {strlen(xxxxx), xxxxx[0], xxxxx, yyyyy}
-
 /*
  * do not attempt to store pointers to anywhere except the node it belongs to.
  * there must be exactly one live pointer to string while context is not bound
@@ -131,19 +43,63 @@ struct String : public K::EditUtils::Element {
     quint32 string_length;
     Symbol  symbols[0];
     
+    void colorify(uint from, uint to, uint attr);
     void decolorify();
 };
-
 inline quint32 sym(String::Symbol s) { return s & 0xffffu; }
 inline quint32 symtype(String::Symbol s) { return (s>>16) & 0x1fu; }
 inline quint32 symattr(String::Symbol s) { return (s>>21) & 0x7ffu; }
 String::Symbol sym(QChar c);
 inline String::Symbol sym(String::Symbol s, quint32 attr)
 { return (String::Symbol)((s & 0x001fffff) | (attr<<21)); }
-
+/*
+ * Tokenizer which parses strings
+ * Tokenizer must be
+ */
+struct TokenizerContext {
+    String * str;
+    uint token_out;
+    uint detail;
+    uint start;
+    uint end;
+    bool parseargs;
+    QVariant variant;
+    void init() {
+        token_out = 0;//TOKEN_INVALID
+        detail    = 0;
+        start     = 0 ;
+        end       = 0;
+        parseargs = false;
+        variant.clear();
+    }
+};
 struct Tokenizer {
 public:
-    Tokenizer();
+    enum Tokens {
+        TOKEN_INVALID = 0,
+        TOKEN_ERROR,
+        TOKEN_LBR,     //(
+        TOKEN_RBR,     //)
+        TOKEN_LIDX,    //[
+        TOKEN_RIDX,    //]
+        TOKEN_COMMA,   //,
+        TOKEN_DOT,     //.
+        TOKEN_DOT3,    //...
+        TOKEN_IDENT,   //bla_4
+        TOKEN_INT,     //0x213, 50
+        TOKEN_FLOAT,   //1.34f
+        TOKEN_SC,      //:
+        TOKEN_SC2,     //::
+        TOKEN_STR1,    //'aaa'
+        TOKEN_STR2,    //"aaa"
+        TOKEN_ASSIGN,  //=
+        TOKEN_OPERATOR,//+ - *= == (but not =)
+        TOKEN_MAX,
+    };
+    struct KW { uint len; uint first; const char * text; uint result; };
+    #define _KW(xxxxx, yyyyy) {strlen(xxxxx), xxxxx[0], xxxxx, yyyyy}
+
+    Tokenizer(const KW * kws);
     ~Tokenizer();
 
     inline constexpr int tstr(char c1, char c2 = 0, char c3 = 0) {
@@ -152,14 +108,9 @@ public:
         if (c3) q = (q<<8)|int(c3);
         return q;
     }
-    bool tokenize(String * s,
-                  int& token_out, int& error,
-                  int& start, int& end,
-                  QVariant * variant);
+    bool tokenize(TokenizerContext * __restrict__ ctx);
 private:
-    int   last_token = TOKEN_INVALID;
-    uint  stoppoint = 0;
-
+    const KW * keywords;
 };
 
 } //namespace Internal

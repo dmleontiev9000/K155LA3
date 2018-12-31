@@ -2,6 +2,146 @@
 
 using namespace K::Lang::Internal;
 
+ASTGenerator::ASTGenerator() {
+
+}
+ASTContext::ASTContext(bool parseargs, int vertex) {
+    tctx.init();
+    tctx.parseargs = parseargs;
+    current_state  = POST_VERTEX;
+    current_vertex = vertex;
+}
+int ASTGenerator::iteration(ASTContext *context, String *str,
+                            K::function<bool ()> isinterrupted)
+{
+    Q_ASSERT(current == nullptr);
+    Q_ASSERT(curstr  == nullptr);
+
+    current = context;
+    curstr  = str;
+
+    do {
+        int rc = STOP;
+        switch(current->current_state)
+        {
+        case ASTContext::PRE_VERTEX:
+            /*
+             * PRE_VERTEX: when we are about to visit a vertex
+             */
+            Q_ASSERT(current->current_vertex < vertices.size());
+            if (current->current_vertex < 0) {
+                if (current->stack.isEmpty()) {
+                    invalidTokensAtEnd();
+                    break;
+                } else {
+                    current->current_vertex = current->stack.takeLast();
+                    rc = CONTINUE;
+                    break;
+                }
+            }
+            current->current_state = ASTContext::MID_VERTEX;
+        case ASTContext::MID_VERTEX:
+            Q_ASSERT(current->current_vertex < vertices.size());
+            Q_ASSERT(current->current_vertex >= 0);
+            if (vertices[current->current_vertex].cb) {
+                rc = vertices[current->current_vertex].cb();
+                if (rc == NEEDMORETIME)
+                    break;
+                if (rc != CONTINUE)
+                    break;
+            }
+            current->current_state = ASTContext::POST_VERTEX;
+        case ASTContext::POST_VERTEX:
+            Q_ASSERT(current->current_vertex < vertices.size());
+            Q_ASSERT(current->current_vertex >= 0);
+            current->current_edge = vertices[current->current_vertex].edg;
+            current->current_state = ASTContext::PRE_EDGE;
+        case ASTContext::PRE_EDGE:
+            Q_ASSERT(current->current_edge < edges.size());
+            Q_ASSERT(current->current_edge >= 0);
+            if (!tokenize(&current->tctx)) {
+                //search for exit edges
+                do {
+                    if (edges[current->current_edge].input >= 0) {
+                        current->current_edge = edges[current->current_edge].next;
+                        Q_ASSERT(current->current_edge < edges.size());
+                        Q_ASSERT(current->current_edge >= 0);
+                        continue;
+                    }
+
+
+                }
+                if ()
+            }
+            if (current->current_edge < 0) {
+
+            }
+        case ASTContext::MID_EDGE:
+            if ()
+        case ASTContext::POST_EDGE:
+
+        default:
+            Q_UNREACHABLE;
+        }
+        int rc;
+        if (current->current_func) {
+            rc = current->current_func();
+            if (rc == NEEDMORETIME)
+                continue;
+            current->current_func = K::function<bool ()>();
+        }
+
+
+        Q_ASSERT(current->current_vertex < vertices.size());
+
+        bool have_token = tokenize(&current->tctx);
+        if (have_token) {
+            if (current->current_vertex < 0) {
+                invalidTokensAtEnd();
+                return STOP;
+            }
+            int n = vertices[current->current_vertex].edg;
+            while(n >= 0) {
+                Q_ASSERT(n < edges.size());
+
+                if (edges[n].input >= 0 &&
+                    edges[n].input != current->tctx.token_out)
+                {
+                    n = edges[n].next;
+                    continue;
+                }
+                if (edges[n].chk) {
+                    int ret = edges[n].chk();
+                    if (ret == NEEDMORETIME) {
+
+                    }
+                    if (ret == IGNORE) {
+                        n = edges[n].next;
+                        continue;
+                    }
+                    if (ret != CONTINUE) {
+                        return ret;
+                    }
+                }
+                if (edges[n].push >= 0)
+                current->stack.push_back(edges[n].push);
+                current->current_vertex = edges[n].target;
+                if (current->current_vertex < 0) {
+                    if (!current->stack.isEmpty())
+                        current->current_vertex = current->stack.takeLast();
+                }
+                Q_ASSERT(current->current_vertex < vertices.size());
+                if (current->current_vertex >= 0) {
+                    if (vertices[current->current_vertex].cb)
+                }
+            }
+        }
+
+    } while (!isinterrupted());
+
+    current = nullptr;
+    curstr  = nullptr;
+}
 int ASTGenerator::VERTEX(callback cb) {
     Vertex v;
     v.edg  = -1;

@@ -1,17 +1,25 @@
 #pragma once
 
 #include "klang_global.h"
+#include "k_tokenizer.h"
 #include "ast.h"
 namespace K {
 namespace Lang {
 namespace Internal {
 
-class TokenizerK : protected Tokenizer {
-
+struct ASTContext {
+    String * s,
+                      int& token_out, int& error,
+                      int& start, int& end,
+                      QVariant * variant
 };
-class ASTGenerator_K : public ASTGenerator {
+class ASTGeneratorK
+        : public virtual ASTGenerator
+        , public virtual TokenizerK
+{
 public:
-    ASTGenerator_K();
+    ASTGeneratorK();
+
 protected:
     /*
      * element resolver
@@ -60,23 +68,23 @@ protected:
     int expr_element();
 private:
     std::vector<bool> mSimpleFlag;
-    struct {
-
-    }
-
 protected:
     /*
      * element generators
      */
-    virtual int access_modifier()=0;
-    virtual int gen_class()=0;
-    virtual int gen_struct()=0;
-    virtual int gen_enum()=0;
-    virtual int gen_flags()=0;
-    virtual int gen_namespace()=0;
-    virtual int gen_unk()=0;
-    virtual int element_name()=0;
-    virtual int element_completed()=0;
+    int access_modifier();
+    int gen_class();
+    int gen_struct();
+    int gen_enum();
+    int gen_flags();
+    int gen_namespace();
+    int gen_unk();
+    int gen_function();
+    int element_name();
+    int element_completed();
+    int element_type();
+    int func_arg_type();
+    int func_arg_name();
     /*
      * class parameter generators
      */

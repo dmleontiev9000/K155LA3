@@ -1,8 +1,7 @@
-#include "ast_k.h"
+#include "k_ast.h"
 
 using namespace K::Lang::Internal;
-
-ASTGenerator_K::ASTGenerator_K()
+ASTGeneratorK::ASTGeneratorK()
 {
     //forward declaration:
     expr         = VERTEX();
@@ -267,25 +266,90 @@ ASTGenerator_K::ASTGenerator_K()
         RET(en2, [=](){return element_completed();});
     }
 
+    /*function*/ {
+        int fn1 = TOK(cns_root, fn, KEYWORD_FUNCTION, [=](){return gen_function();});
+        int fn2 = TOK(fn1, TOKEN_IDENT, [=](){return element_name();});
+        int ftype1 = TOK(fn1, TOKEN_LIDX);
+        int ftype2 = VERTEX([=](){return element_type();});
+        CALL_RESOLVE_ELT_SIMPLE(ftype1, ftype2);
+        int ftype3 = TOK(ftype2, TOKEN_RIDX);
+        NEXT(ftype3, fn2);
+
+        fn2 = TOK(fn2, TOKEN_LBR);
+        int fn3 = TOK(fn3, TOKEN_RBR);
+
+        int argtype = VERTEX([=](){return func_arg_type();});
+        CALL_RESOLVE_ELT_SIMPLE(fn2, argtype);
+        int argname = TOK(argtype, TOKEN_IDENT, [=](){return func_arg_name();});
+        EDGE(argname, fn2, TOKEN_COMMA);
+        EDGE(argname, fn3, TOKEN_RBR);
+        RET(fn3, [=](){return element_completed();});
+    }
 
 }
-void ASTGenerator_K::CALL_RESOLVE_ELT(int v, int after) {
+void ASTGeneratorK::CALL_RESOLVE_ELT(int v, int after) {
     CALL(v, resolve_elt, after, {TOKEN_SC2, TOKEN_IDENT, KEYWORD_OPERATOR},
          [=](){return resolve_begin_full();});
 }
-void ASTGenerator_K::CALL_RESOLVE_ELT_SIMPLE(int v, int after) {
+void ASTGeneratorK::CALL_RESOLVE_ELT_SIMPLE(int v, int after) {
     CALL(v, resolve_elt, after, {TOKEN_SC2, TOKEN_IDENT, KEYWORD_OPERATOR},
          [=](){return resolve_begin_simple();});
 }
 //simple expression(must be computable at compile time)
 //resolves to constant or type reference
-void ASTGenerator_K::CALL_COMPLEX_EXPR(int v, int after) {
+void ASTGeneratorK::CALL_COMPLEX_EXPR(int v, int after) {
     CALL(v, expr, after, {-1},
          [=](){return expr_begin();});
 }
-void ASTGenerator_K::CALL_SIMPLE_EXPR(int v, int after) {
+void ASTGeneratorK::CALL_SIMPLE_EXPR(int v, int after) {
     ASTGenerator::CALL(v, expr, after, {TOKEN_INT, TOKEN_OPERATOR,
                           TOKEN_FLOAT,TOKEN_STR1,TOKEN_STR2,
                           TOKEN_SC2, TOKEN_IDENT},
          [=](){return expr_begin_simple();});
 }
+int ASTGeneratorK::expr_begin() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_end() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_begin_simple() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_prefix_operator() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_postfix_operator() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_member_operator() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_operator() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_attrib_operator() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_call_operator() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_call_arg_name() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+int ASTGeneratorK::expr_call_arg_value() {
+    qDebug("%s", __FUNCTION__);
+    return CONTINUE;
+}
+
+

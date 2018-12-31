@@ -4,20 +4,52 @@
 #include "str.h"
 #include <../core/compat.h>
 #include <QVector>
+#include <QElapsedTimer>
 
 namespace K {
 namespace Lang {
 namespace Internal {
 
-class ASTGenerator {
+class ASTGenerator;
+
+class ASTContext{
+public:
+    ASTContext(bool parseargs, int vertex);
+
+    uint getToken() { return tctx.token_out; }
+    uint getTokenStart() { return tctx.start; }
+    uint getTokenEnd() { return tctx.end; }
+    uint getTokenDetail() { return tctx.detail; }
+
+    QString getIdentAsQString() const;
+
+    QVariant getImmediate() const { return tctx.variant; }
+private:
+    friend class ASTGenerator;
+    enum { PRE_VERTEX, MID_VERTEX, POST_VERTEX, PRE_EDGE, MID_EDGE, POST_EDGE };
+
+    TokenizerContext tctx;
+    QVector<int>     stack;
+    int              current_state;
+    int              current_vertex;
+    int              current_edge;
+};
+class ASTGenerator : public virtual Tokenizer {
 public:
     ASTGenerator();
+    int iteration(ASTContext * context, String * str,
+                  K::function<bool ()> isinterrupted);
 
-    enum {CONTINUE, STOP, IGNORE, BLOCKED};
     typedef K::function<int ()> callback;
+
+
+protected:
+    enum {CONTINUE, STOP, IGNORE, BLOCKED, NEEDMORETIME};
+    virtual void invalidTokensAtEnd() = 0;
+    virtual void unexpectedTokens() = 0;
+
     typedef struct { int input, target, next, push; callback chk;} Edge;
     typedef struct { int edg, edg_last; callback cb; } Vertex;
-protected:
     int VERTEX(callback cb = callback());
     Edge& EDGE(int v, int to, int tok, callback chk = callback());
     void EDGES(int v, int to, std::initializer_list<int> toks, callback chk = callback());
@@ -32,6 +64,9 @@ private:
     typedef QVector<Vertex> VertexMap;
     EdgeMap   edges;
     VertexMap vertices;
+
+    ASTContext * current = nullptr;
+    String     * curstr  = nullptr;
 };
 
 } //namespace Internal
