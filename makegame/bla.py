@@ -1,6 +1,3 @@
-import bpy
-import json
-
 def aligns(sz, al=127):
     return (sz+al)&(~al);
 

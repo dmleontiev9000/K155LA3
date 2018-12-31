@@ -2,12 +2,14 @@ import os
 import sys
 import array
 import bpy
+import json
 
 def execfile(name):
     exec(open(name).read(), globals())
 
 execfile("vars.py")
 execfile("bla.py");
+execfile("anim.py");
 
 try:
     print("Creating blob for data dumping");
@@ -37,12 +39,60 @@ try:
         savePoly(output, mdldesc, mesh);
         print("    dump complete");
         template_models[mesh.name] = mdldesc;
+
     cconf["template_models"]=template_models;
 
     skeletons = {}
     for armature in data_to.armatures:
+        #skip muscle armatures because we don't know how to use it
+        if "muscle" in armature.name:
+            print("  * skipping skeleton "+armature.name);
+            continue;
+        #skip armatures with to root
+        keys = armature.bones.keys();
+        if "root" not in keys:
+            print("  * skeleton "+armature.name+" has no root bone; skipping");
+            continue;
+
+        #https://docs.blender.org/manual/en/latest/rigging/armatures/bones/properties/deform.html
+
         print("  * dumping skeleton "+armature.name);
+        for key in keys:
+            bone = armature.bones.get(key);
+            #bone effect is
+#            print("matrix={}".format(bone.matrix));
+            print("=================================");
+            #print("children of {} = {}".format(key, bone.children.keys()));
+            #print("head = {}".format(bone.head));
+            #print("tail = {}".format(bone.tail));
+            #if bone.envelope_distance:
+            #    print("envelope_distance = {}".format(bone.envelope_distance));
+            #if bone.envelope_weight:
+            #    print("envelope_weight = {}".format(bone.envelope_weight));
+            #print("head_radius = {}".format(bone.head_radius));
+            #print("tail_radius = {}".format(bone.tail_radius));
+            #print("use_connect = {}".format(bone.use_connect));
+            #print("use_inherit_rotation = {}".format(bone.use_inherit_rotation));
+            #print("use_inherit_scale = {}".format(bone.use_inherit_scale));
+            #print("use_relative_parent = {}".format(bone.use_relative_parent));
+            #use_envelope_multiply
+
+#        print("deform_method={}".format(armature.deform_method));
+#        print("use_mirror_x={}".format(armature.use_mirror_x));
+#        print("transform={}".format(armature.transform));
+#        print("bones={}".format(armature.bones));
+#        print("bones.keys={}".format(armature.bones.keys()));
+#        a = {};
+#        a.deform_method = armature.deform_method;
+#        skeletons[armature.name] = a;
+
     cconf["skeletons"]=skeletons;
+
+#    for character in cconf["character_list"]:
+
+
+
+
 
     output.close();
 
@@ -55,5 +105,5 @@ except:
     print("ERROR: failed to import data from library")
     sys.exit(1);
 else:
-    sys.exit(0);
+    sys.exit(1);
 
