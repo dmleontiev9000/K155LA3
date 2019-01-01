@@ -2,6 +2,7 @@ include(../core/corelib_gui.pri)
 
 TARGET     = documents
 TEMPLATE   = lib
+
 DEFINES   += DOCUMENTS_LIBRARY
 QT        += sql
 

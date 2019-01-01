@@ -13,6 +13,10 @@ BuildFullPath PATH
 Sub BuildFullPath(ByVal FullPath)
 If Not fso.FolderExists(FullPath) Then
 BuildFullPath fso.GetParentFolderName(FullPath)
+
 fso.CreateFolder FullPath
 End If
 End Sub
+
+WScript.Quit 0
+

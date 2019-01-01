@@ -15,7 +15,9 @@ End If
 
 'Extract the contants of the zip file.
 set objShell = CreateObject("Shell.Application")
-set FilesInZip=objShell.NameSpace(ZipFile).items
+set FilesInZip = objShell.NameSpace(ZipFile).Items()
 objShell.NameSpace(ExtractTo).CopyHere(FilesInZip)
 Set fso = Nothing
 Set objShell = Nothing
+
+WScript.Quit 0

@@ -5,5 +5,5 @@ SUBDIRS += core coregui \
     gui launcher \
     ide settings help \
     klang \
+    boost \
     makegame
-
