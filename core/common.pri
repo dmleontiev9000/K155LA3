@@ -3,10 +3,8 @@
 #
 win32-msvc* {
     SYNTAX_ONLY = /Zs /EHsc /nologo
-    CXX14 =
     QMAKE_CXXFLAGS += /FI $$OUT_PWD/../core/config.h
 } else:*-g++ {
-    CXX14 = -std=c++1y
     SYNTAX_ONLY = -fsyntax-only
     QMAKE_CXXFLAGS += -include $$OUT_PWD/../core/config.h
 } else {
@@ -82,7 +80,7 @@ QT       -= gui widgets
 CONFIG   += c++14
 
 defineTest(syntaxTest) {
-    CMD = $${QMAKE_CXX} $${CXX14} $${SYNTAX_ONLY} $${PWD}/config.tests/$${1}/main.cpp 2>&1
+    CMD = $${QMAKE_CXX} $${QMAKE_CXXFLAGS_CXX14} $${SYNTAX_ONLY} $${PWD}/config.tests/$${1}/main.cpp 2>&1
     TEXT = $$system($$CMD)
     win32-msvc* {
         equals(TEXT,"main.cpp") {
