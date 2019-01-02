@@ -1,4 +1,5 @@
 include(../core/plugin_gui.pri)
+
 QT      += help
 TARGET   = help
 TEMPLATE = lib

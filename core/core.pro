@@ -77,7 +77,7 @@ HEADERS +=\
 #SOURCES += mutex.cpp
 #HEADERS += mutex.h
 
-DISTFILES += \
+OTHER_FILES += \
     windows_unzip.vbs \
     windows_wget.vbs \
     windows_mkdir.vbs

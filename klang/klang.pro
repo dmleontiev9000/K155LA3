@@ -9,6 +9,9 @@ INCLUDEPATH += $$PWD/../documents
 DEPENDPATH  += $$PWD/../documents
 LIBS        += -ldocuments
 
+INCLUDEPATH += $$PWD/../boost
+DEPENDPATH  += $$PWD/../boost
+
 INCLUDEPATH += $$PWD/../edit_utils
 DEPENDPATH  += $$PWD/../edit_utils
 LIBS        += -ledit_utils

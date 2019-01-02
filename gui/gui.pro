@@ -1,6 +1,8 @@
 include(../core/plugin_gui.pri)
+
 TARGET   = gui
 TEMPLATE = lib
+
 DEFINES += GUI_LIBRARY
 
 SOURCES += \
