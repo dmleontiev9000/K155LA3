@@ -102,7 +102,7 @@ public:
     Tokenizer(const KW * kws);
     ~Tokenizer();
 
-    inline constexpr int tstr(char c1, char c2 = 0, char c3 = 0) {
+    inline static constexpr int tstr(char c1, char c2 = 0, char c3 = 0) {
         int q = c1;
         if (c2) q = (q<<8)|int(c2);
         if (c3) q = (q<<8)|int(c3);

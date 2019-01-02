@@ -1,5 +1,5 @@
 include(../core/corelib_gui.pri)
-
+include(../boost/boost.pri)
 TARGET = klang
 TEMPLATE = lib
 
@@ -22,7 +22,6 @@ SOURCES += \
     lang_ctx.cpp \
     syntaxerrors.cpp \
     str.cpp \
-    eval.cpp \
     ast.cpp \
     k_tokenizer.cpp \
     k_ast.cpp
@@ -30,10 +29,8 @@ SOURCES += \
 HEADERS += \
     klang_global.h \
     lang.h \
-    lang_p.h \
     syntaxerrors.h \
     str.h \
-    eval.h \
     ast.h \
     k_tokenizer.h \
     k_ast.h
