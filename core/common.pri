@@ -25,11 +25,11 @@ win32 {
                 return($$CYGWIN_BIN"mkdir -p "$$shell_path($$1))
             }
         }
-        exists($$CYGWIN"/bin/touch.exe") {
-            defineReplace(tag) {
-                return($$CYGWIN_BIN"touch "$$shell_path($$1))
-            }
-        }
+        #exists($$CYGWIN"/bin/touch.exe") {
+        #    defineReplace(tag) {
+        #        return($$CYGWIN_BIN"touch "$$shell_path($$1))
+        #    }
+        #}
         exists($$CYGWIN"/bin/unzip.exe") {
             defineReplace(unzip) {
                 return($$CYGWIN_BIN"unzip -q "$$shell_path($$1)" -d "$$shell_path($$2))
@@ -47,11 +47,6 @@ win32 {
             return($$CSCRIPT $$shell_path($$PWD/../core/windows_mkdir.vbs) $$shell_path($$1))
         }
     }
-    !defined(tag) {
-        defineReplace(tag) {
-            return("ECHO foo >" $$shell_path($$1))
-        }
-    }
     !defined(unzip) {
         defineReplace(unzip) {
             return($$CSCRIPT $$shell_path($$PWD/../core/windows_unzip.vbs) $$shell_path($$1) $$shell_path($$2))
@@ -66,9 +61,6 @@ win32 {
     defineReplace(makedir) {
         return("mkdir -p "$$shell_path($$1))
     }
-    defineReplace(tag) {
-        return("touch "$$shell_path($$1))
-    }
     defineReplace(unzip) {
         return("unzip -q "$$shell_path($$1)" -d "$$shell_path($$2) )
     }
@@ -76,6 +68,12 @@ win32 {
         return("wget -q -c $$1 -O "$$shell_path($$2))
     }
 }
+defineReplace(tag) {
+    M=$$2
+    isEmpty(M):return("echo foo >" $$shell_path($$1))
+    else:return("echo "$$2" >" $$shell_path($$1))
+}
+
 QT       -= gui widgets
 CONFIG   += c++14
 
