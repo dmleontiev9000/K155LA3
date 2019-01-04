@@ -1,8 +1,8 @@
 #include "k_tokenizer.h"
 
-using namespace K::Lang::Internal;
+using namespace K::Lang;
 
-Tokenizer::KW TokenizerK::keywords[] = {
+Tokenizer::KW K::KPP::Tokenizer::keywords[] = {
     _KW("int?",     KEYWORD_INT),
     _KW("uint?",    KEYWORD_UINT),
     _KW("bitvec?",  KEYWORD_BITVEC),
@@ -64,8 +64,8 @@ Tokenizer::KW TokenizerK::keywords[] = {
 
     {0,0,0,0}
 };
-TokenizerK::TokenizerK()
-    : Tokenizer(keywords)
+K::KPP::Tokenizer::Tokenizer()
+    : K::Lang::Tokenizer(keywords)
 {}
-TokenizerK::~TokenizerK()
+K::KPP::Tokenizer::~Tokenizer()
 {}

@@ -24,16 +24,19 @@ SOURCES += \
     str.cpp \
     ast.cpp \
     k_tokenizer.cpp \
-    k_ast.cpp
+    k_ast.cpp \
+    tokenizer.cpp
 
 HEADERS += \
     klang_global.h \
     lang.h \
+    lang_p.h \
     syntaxerrors.h \
     str.h \
     ast.h \
     k_tokenizer.h \
-    k_ast.h
+    k_ast.h \
+    tokenizer.h
 
 win32: INCLUDEPATH += $$_PRO_FILE_PWD_/../3rd_party/boost
 

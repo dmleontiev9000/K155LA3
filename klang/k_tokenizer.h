@@ -1,19 +1,18 @@
 #pragma once
 
 #include "klang_global.h"
-#include "ast.h"
+#include "tokenizer.h"
 namespace K {
-namespace Lang {
-namespace Internal {
+namespace KPP{
 
-class TokenizerK : protected Tokenizer {
+class Tokenizer : protected K::Lang::Tokenizer {
 public:
     enum Keywords {
         KEYWORD_MIN = TOKEN_MAX,
         //keywords
-        KEYWORD_CONST,//+
-        KEYWORD_VOLATILE,//+
-        KEYWORD_STATIC,//+
+        KEYWORD_CONST,
+        KEYWORD_VOLATILE,
+        KEYWORD_STATIC,
         KEYWORD_FINAL,
         KEYWORD_MUTABLE,
         KEYWORD_VIRTUAL,
@@ -26,22 +25,22 @@ public:
         KEYWORD_UINT,
         KEYWORD_BITVEC,
         KEYWORD_TYPE,
-        KEYWORD_THIS,//+
+        KEYWORD_THIS,
 
-        KEYWORD_PRIVATE,//+
-        KEYWORD_PUBLIC,//+
-        KEYWORD_PROTECTED,//+
+        KEYWORD_PRIVATE,
+        KEYWORD_PUBLIC,
+        KEYWORD_PROTECTED,
 
-        KEYWORD_ENUM,//+
-        KEYWORD_FLAGS,//+
+        KEYWORD_ENUM,
+        KEYWORD_FLAGS,
         KEYWORD_TYPEDEF,
-        KEYWORD_NAMESPACE,//+
-        KEYWORD_STRUCT,//+
-        KEYWORD_CLASS,//+
+        KEYWORD_NAMESPACE,
+        KEYWORD_STRUCT,
+        KEYWORD_CLASS,
 
-        KEYWORD_CONSTRUCTOR,//+
-        KEYWORD_DESTRUCTOR,//+
-        KEYWORD_OPERATOR,//+
+        KEYWORD_CONSTRUCTOR,
+        KEYWORD_DESTRUCTOR,
+        KEYWORD_OPERATOR,
         KEYWORD_OPERATOR_MEM,
         KEYWORD_OPERATOR_POST,
         KEYWORD_OPERATOR_PREF,
@@ -51,8 +50,8 @@ public:
         KEYWORD_COPY,
         KEYWORD_PROPERTY,
         KEYWORD_FUNCTION,
-        KEYWORD_RETURN,//+
-        KEYWORD_VAR,//+
+        KEYWORD_RETURN,
+        KEYWORD_VAR,
         KEYWORD_SLOT,
         KEYWORD_SIGNAL,
 
@@ -63,24 +62,23 @@ public:
 
         KEYWORD_ASSERT,
 
-        KEYWORD_IF,//+
-        KEYWORD_ELSE,//+
+        KEYWORD_IF,
+        KEYWORD_ELSE,
 
-        KEYWORD_FOR,//+
-        KEYWORD_WHILE,//+
-        KEYWORD_BREAK,//+
-        KEYWORD_CONTINUE,//+
+        KEYWORD_FOR,
+        KEYWORD_WHILE,
+        KEYWORD_BREAK,
+        KEYWORD_CONTINUE,
 
-        KEYWORD_SWITCH,//+
-        KEYWORD_CASE,//+
-        KEYWORD_DEFAULT,//+
+        KEYWORD_SWITCH,
+        KEYWORD_CASE,
+        KEYWORD_DEFAULT,
     };
-    TokenizerK();
-    ~TokenizerK();
+    Tokenizer();
+    ~Tokenizer();
 private:
     static KW keywords[];
 };
 
-} //namespace Internal
-} //namespace Lang
+} //namespace KPP
 } //namespace K
