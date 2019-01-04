@@ -3,18 +3,83 @@
 
 using namespace K::Lang;
 using namespace K::Lang::S;
+using namespace K::Lang::T;
 
-static bool xstrcmp(String::Symbol * s, uint n, const char * text, uint &detail);
+namespace {
+    struct ContextP {
+        uint token_out;
+        uint detail;
+        uint start;
+        uint end;
+        bool parseargs;
+        QVariant variant;
+    };
+}
+Tokenizer::Context::Context(bool pa) {
+    auto p = new ContextP;
+    p->token_out = 0;
+    p->detail    = 0;
+    p->start     = 0;
+    p->end       = 0;
+    p->parseargs = pa;
+    d = p;
+}
+Tokenizer::Context::~Context() {
+    delete (ContextP*)d;
+}
+void Tokenizer::Context::set_error(uint err) {
+    auto p = (ContextP*)d;
+    p->token_out = TOKEN_ERROR;
+    p->detail = err;
+}
+
+uint Tokenizer::Context::token() const
+{
+    return ((ContextP*)d)->token_out;
+}
+uint Tokenizer::Context::detail() const
+{
+    return ((ContextP*)d)->detail;
+}
+uint Tokenizer::Context::start() const
+{
+    return ((ContextP*)d)->start;
+}
+uint Tokenizer::Context::end() const
+{
+    return ((ContextP*)d)->end;
+}
+void Tokenizer::Context::next()
+{
+    auto p = (ContextP*)d;
+    p->start = p->end;
+}
+const QVariant& Tokenizer::Context::data() const
+{
+    return ((ContextP*)d)->variant;
+}
+QString Tokenizer::Context::getTokenAsQString(const String * s) const {
+    auto p = (ContextP*)d;
+    Q_ASSERT(p->end >= p->start);
+    Q_ASSERT(p->end < s->string_length);
+    QString ret;
+    ret.reserve(p->end - p->start);
+    for(auto i = p->start; i < p->end; ++i) {
+        ret.append(QChar(sym(s->symbols[i])));
+    }
+    return ret;
+}
+static bool xstrcmp(const String::Symbol * s, uint n, const char * text, uint &detail);
 
 Tokenizer::Tokenizer(const KW * kws)
     : keywords(kws)
 {}
 Tokenizer::~Tokenizer()
 {}
-bool Tokenizer::tokenize(String * __restrict__ str, TokenizerContext * __restrict__ ctx)
+bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * __restrict__ context)
 {
     static const char digits[]={"0123456789abcdef"};
-
+    ContextP * ctx = (ContextP*)context->d;
     if (ctx->start >= str->string_length)
         return false;
 
@@ -407,7 +472,7 @@ bool Tokenizer::tokenize(String * __restrict__ str, TokenizerContext * __restric
     ctx->end = i;
     return true;
 }
-static bool xstrcmp(String::Symbol * s, uint n, const char * text, uint& detail) {
+static bool xstrcmp(const String::Symbol *s, uint n, const char * text, uint& detail) {
     uint i = 1;
     for (;i < n;++i)
     {
