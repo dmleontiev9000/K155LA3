@@ -5,7 +5,6 @@
 
 namespace K {
 namespace Lang {
-namespace Internal {
 
 namespace SyntaxErrors {
 enum : unsigned {
@@ -21,10 +20,11 @@ enum : unsigned {
     invalid_operator,
     invalid_symbol,
     string_not_terminated,
+    unexpected_token,
+    unexpected_tokens_past_end,
 };
 inline bool is_error(unsigned e) { return e >= error_base; }
 }
 
-} //namespace Internal
 } //namespace Lang
 } //namespace K

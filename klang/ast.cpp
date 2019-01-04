@@ -1,148 +1,159 @@
 #include "ast.h"
+#include "syntaxerrors.h"
 
-using namespace K::Lang::Internal;
+namespace K {
+namespace Lang {
 
-ASTGenerator::ASTGenerator() {
+class ASTGeneratorPrivate {
+public:
+    ASTGeneratorPrivate(){}
 
+    typedef struct { int input, target, next, push;
+                     ASTGenerator::Callback chk;} Edge;
+    typedef struct { int edg, edg_last;
+                     ASTGenerator::Callback cb; } Vertex;
+    Edge& EDGE(int v, int to, int tok,
+               ASTGenerator::Callback chk =
+               ASTGenerator::Callback());
+    int  VERTEX(ASTGenerator::Callback cb =
+                ASTGenerator::Callback());
+    void EDGES(int v, int to, std::initializer_list<int> toks,
+               ASTGenerator::Callback chk =
+               ASTGenerator::Callback());
+    void CALL(int v, int to, int after, std::initializer_list<int> toks,
+              ASTGenerator::Callback chk =
+              ASTGenerator::Callback());
+    void CALL(int v, int to, int after, int token,
+              ASTGenerator::Callback chk =
+              ASTGenerator::Callback());
+    int  TOK(int v, int token,
+              ASTGenerator::Callback verify =
+              ASTGenerator::Callback(),
+              ASTGenerator::Callback chk =
+              ASTGenerator::Callback());
+    int  TOKS(int v, std::initializer_list<int> toks,
+              ASTGenerator::Callback verify =
+              ASTGenerator::Callback(),
+              ASTGenerator::Callback chk =
+              ASTGenerator::Callback());
+
+    typedef QVector<Edge>   EdgeMap;
+    typedef QVector<Vertex> VertexMap;
+    EdgeMap   edges;
+    VertexMap vertices;
+};
+} //namespace Lang
+} //namespace K
+using namespace K::Lang;
+
+namespace {
+    enum class State { VERTEX, ENTRY, EDGE };
+    struct ContextP {
+        QVector<int>     stack;
+        State            current_state;
+        int              current_vertex;
+        int              current_edge;
+        int              last_token;
+    };
 }
-ASTContext::ASTContext(bool parseargs, int vertex) {
-    tctx.init();
-    tctx.parseargs = parseargs;
-    current_state  = POST_VERTEX;
-    current_vertex = vertex;
-}
-int ASTGenerator::iteration(ASTContext *context, String *str,
-                            K::function<bool ()> isinterrupted)
+ASTGenerator::Context::Context(bool parseargs, int vertex)
+    : Tokenizer::Context(parseargs)
 {
-    Q_ASSERT(current == nullptr);
-    Q_ASSERT(curstr  == nullptr);
+    auto p = new ContextP;
+    p->current_state = State::ENTRY;
+    p->current_vertex = vertex;
+    p->current_edge = -1;
+    p->last_token = -1;
+    d = p;
+}
+ASTGenerator::Context::~Context()
+{
+    delete (ContextP*)d;
+}
+ASTGenerator::ASTGenerator(const KW *kws)
+    : Tokenizer(kws)
+    , d(new ASTGeneratorPrivate)
+{
 
-    current = context;
-    curstr  = str;
+}
+ASTGenerator::~ASTGenerator()
+{
+    delete d;
+}
 
-    do {
-        int rc = STOP;
+K::Lang::ASTGenerator::RC ASTGenerator::iteration(Context *context, const String *s, const InterruptTest &itest)
+{
+    auto current = (ContextP*)context->d;
+    const auto& vertices = d->vertices;
+    const auto& edges    = d->edges;
+    while(!itest || itest()) {
         switch(current->current_state)
         {
-        case ASTContext::PRE_VERTEX:
+        case State::VERTEX:
             /*
-             * PRE_VERTEX: when we are about to visit a vertex
+             * we are about to visit a vertex
              */
             Q_ASSERT(current->current_vertex < vertices.size());
             if (current->current_vertex < 0) {
                 if (current->stack.isEmpty()) {
-                    invalidTokensAtEnd();
-                    break;
-                } else {
-                    current->current_vertex = current->stack.takeLast();
-                    rc = CONTINUE;
-                    break;
+                    if (context->end() < s->string_length) {
+                        context->set_error(SyntaxErrors::unexpected_tokens_past_end);
+                        return RC::ERROR;
+                    }
+                    return RC::SUCCESS;
                 }
+                current->current_vertex = current->stack.takeLast();
+                Q_ASSERT(current->current_vertex < vertices.size());
+                Q_ASSERT(current->current_vertex >= 0);
             }
-            current->current_state = ASTContext::MID_VERTEX;
-        case ASTContext::MID_VERTEX:
-            Q_ASSERT(current->current_vertex < vertices.size());
-            Q_ASSERT(current->current_vertex >= 0);
             if (vertices[current->current_vertex].cb) {
-                rc = vertices[current->current_vertex].cb();
-                if (rc == NEEDMORETIME)
-                    break;
-                if (rc != CONTINUE)
-                    break;
+                RC rc = vertices[current->current_vertex].cb(itest);
+                if (rc != RC::CONTINUE)
+                    return rc;
             }
-            current->current_state = ASTContext::POST_VERTEX;
-        case ASTContext::POST_VERTEX:
+        case State::ENTRY:
+            /*
+             * at vertex, get new token and begin searching
+             * for edge
+             */
             Q_ASSERT(current->current_vertex < vertices.size());
             Q_ASSERT(current->current_vertex >= 0);
             current->current_edge = vertices[current->current_vertex].edg;
-            current->current_state = ASTContext::PRE_EDGE;
-        case ASTContext::PRE_EDGE:
+            current->last_token = tokenize(s, context) ? context->token() : -1;
+            current->current_state = State::EDGE;
+        case State::EDGE:
+            /*
+             * searching for an edge
+             */
             Q_ASSERT(current->current_edge < edges.size());
-            Q_ASSERT(current->current_edge >= 0);
-            if (!tokenize(&current->tctx)) {
-                //search for exit edges
-                do {
-                    if (edges[current->current_edge].input >= 0) {
-                        current->current_edge = edges[current->current_edge].next;
-                        Q_ASSERT(current->current_edge < edges.size());
-                        Q_ASSERT(current->current_edge >= 0);
-                        continue;
+            //search for exit edges
+            while(current->current_edge >= 0) {
+                if (edges[current->current_edge].input == current->last_token) {
+                    if (edges[current->current_edge].chk) {
+                        RC rc = edges[current->current_edge].chk(itest);
+                        if (rc == RC::IGNORE)
+                            continue;
+                        if (rc != RC::CONTINUE)
+                            return rc;
                     }
-
-
                 }
-                if ()
+                current->current_edge = edges[current->current_edge].next;
+                Q_ASSERT(current->current_edge < edges.size());
             }
-            if (current->current_edge < 0) {
-
-            }
-        case ASTContext::MID_EDGE:
-            if ()
-        case ASTContext::POST_EDGE:
-
+            if (current->current_edge < 0)
+                return RC::INTERNAL_ERROR;
+            current->current_vertex = edges[current->current_edge].target;
+            if (edges[current->current_edge].push > 0)
+                current->stack.push_back(edges[current->current_edge].push);
+            current->current_state = State::VERTEX;
+            break;
         default:
-            Q_UNREACHABLE;
+            return RC::INTERNAL_ERROR;
         }
-        int rc;
-        if (current->current_func) {
-            rc = current->current_func();
-            if (rc == NEEDMORETIME)
-                continue;
-            current->current_func = K::function<bool ()>();
-        }
-
-
-        Q_ASSERT(current->current_vertex < vertices.size());
-
-        bool have_token = tokenize(&current->tctx);
-        if (have_token) {
-            if (current->current_vertex < 0) {
-                invalidTokensAtEnd();
-                return STOP;
-            }
-            int n = vertices[current->current_vertex].edg;
-            while(n >= 0) {
-                Q_ASSERT(n < edges.size());
-
-                if (edges[n].input >= 0 &&
-                    edges[n].input != current->tctx.token_out)
-                {
-                    n = edges[n].next;
-                    continue;
-                }
-                if (edges[n].chk) {
-                    int ret = edges[n].chk();
-                    if (ret == NEEDMORETIME) {
-
-                    }
-                    if (ret == IGNORE) {
-                        n = edges[n].next;
-                        continue;
-                    }
-                    if (ret != CONTINUE) {
-                        return ret;
-                    }
-                }
-                if (edges[n].push >= 0)
-                current->stack.push_back(edges[n].push);
-                current->current_vertex = edges[n].target;
-                if (current->current_vertex < 0) {
-                    if (!current->stack.isEmpty())
-                        current->current_vertex = current->stack.takeLast();
-                }
-                Q_ASSERT(current->current_vertex < vertices.size());
-                if (current->current_vertex >= 0) {
-                    if (vertices[current->current_vertex].cb)
-                }
-            }
-        }
-
-    } while (!isinterrupted());
-
-    current = nullptr;
-    curstr  = nullptr;
+    }
+    return RC::INTERRUPTED;
 }
-int ASTGenerator::VERTEX(callback cb) {
+int ASTGeneratorPrivate::VERTEX(ASTGenerator::Callback cb) {
     Vertex v;
     v.edg  = -1;
     v.edg_last = -1;
@@ -150,7 +161,10 @@ int ASTGenerator::VERTEX(callback cb) {
     vertices.append(v);
     return vertices.size();
 }
-ASTGenerator::Edge& ASTGenerator::EDGE(int v, int to, int tok, callback chk) {
+int ASTGenerator::VERTEX(Callback cb) {
+    return d->VERTEX(cb);
+}
+ASTGeneratorPrivate::Edge& ASTGeneratorPrivate::EDGE(int v, int to, int tok, ASTGenerator::Callback chk) {
     Q_ASSERT(v  >= 0 && v  < vertices.size());
     Q_ASSERT(to >= 0 && to < vertices.size());
 
@@ -170,33 +184,48 @@ ASTGenerator::Edge& ASTGenerator::EDGE(int v, int to, int tok, callback chk) {
     vertices[v].edg_last = n;
     return edges.last();
 }
-void ASTGenerator::EDGES(int v, int to, std::initializer_list<int> toks, callback chk ) {
+void ASTGeneratorPrivate::EDGES(int v, int to, std::initializer_list<int> toks, ASTGenerator::Callback chk) {
     for(auto i = toks.begin(); i != toks.end(); ++i)
         EDGE(v, to, *i, chk);
 }
-void ASTGenerator::CALL(int v, int to, int after, std::initializer_list<int> toks, callback chk) {
+void ASTGenerator::EDGES(int v, int to, std::initializer_list<int> toks, Callback chk ) {
+    d->EDGES(v, to, toks, chk);
+}
+void ASTGeneratorPrivate::CALL(int v, int to, int after, std::initializer_list<int> toks, ASTGenerator::Callback chk) {
     for(auto i = toks.begin(); i != toks.end(); ++i)
         EDGE(v, to, *i, chk).push=after;
 }
-void ASTGenerator::CALL(int v, int to, int after, int token, callback chk)
-{
+void ASTGenerator::CALL(int v, int to, int after, std::initializer_list<int> toks, Callback chk) {
+    d->CALL(v, to, after, toks, chk);
+}
+void ASTGeneratorPrivate::CALL(int v, int to, int after, int token, ASTGenerator::Callback chk){
     EDGE(v, to, token, chk).push = after;
 }
-void ASTGenerator::NEXT(int v, int to, callback chk) {
-    EDGE(v, to, -1, chk);
+void ASTGenerator::CALL(int v, int to, int after, int token, Callback chk) {
+    d->CALL(v, to, after, token, chk);
 }
-void ASTGenerator::RET(int v, callback chk) {
-    EDGE(v, -1, -1, chk);
+void ASTGenerator::NEXT(int v, int to, Callback chk) {
+    d->EDGE(v, to, -1, chk);
 }
-int ASTGenerator::TOK(int v, int token, callback verify, callback chk)
+void ASTGenerator::RET(int v, Callback chk) {
+    d->EDGE(v, -1, -1, chk);
+}
+int ASTGeneratorPrivate::TOK(int v, int token, ASTGenerator::Callback verify, ASTGenerator::Callback chk)
 {
     int vx = VERTEX(verify);
     EDGE(v, vx, token, chk);
     return vx;
 }
-int ASTGenerator::TOKS(int v, std::initializer_list<int> toks, callback verify, callback chk) {
+int ASTGenerator::TOK(int v, int token, Callback verify, Callback chk)
+{
+    return d->TOK(v, token, verify, chk);
+}
+int ASTGeneratorPrivate::TOKS(int v, std::initializer_list<int> toks, ASTGenerator::Callback verify, ASTGenerator::Callback chk) {
     int vx = VERTEX(verify);
     for(auto i = toks.begin(); i != toks.end(); ++i)
         EDGE(v, vx, *i, chk);
     return vx;
+}
+int ASTGenerator::TOKS(int v, std::initializer_list<int> toks, Callback verify, Callback chk) {
+    return d->TOKS(v, toks, verify, chk);
 }
