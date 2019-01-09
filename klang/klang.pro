@@ -23,9 +23,11 @@ SOURCES += \
     syntaxerrors.cpp \
     str.cpp \
     ast.cpp \
-    k_tokenizer.cpp \
     k_ast.cpp \
-    tokenizer.cpp
+    tokenizer.cpp \
+    k_keywords.cpp \
+    k_expr.cpp \
+    k_resolve.cpp
 
 HEADERS += \
     klang_global.h \
@@ -34,9 +36,9 @@ HEADERS += \
     syntaxerrors.h \
     str.h \
     ast.h \
-    k_tokenizer.h \
     k_ast.h \
-    tokenizer.h
+    tokenizer.h \
+    k_ast_p.h
 
 win32: INCLUDEPATH += $$_PRO_FILE_PWD_/../3rd_party/boost
 

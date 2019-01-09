@@ -1,12 +1,12 @@
 #include "lang_p.h"
 
-using namespace K::Lang::Internal;
+using namespace K::Lang;
 
 void Node::invalidate() {
     flags = 0;
     attachToWorkset(&context->workset_invalidate);
 }
-int  Node::invalidate_data() {
+void Node::invalidate_data() {
     namestart = nameend = 0;
 
     if (outgoing_refs) {

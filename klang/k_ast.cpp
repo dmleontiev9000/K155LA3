@@ -1,13 +1,15 @@
 #include "k_ast.h"
+using namespace K::Lang;
 
-using namespace K::Lang::Internal;
-ASTGeneratorK::ASTGeneratorK()
+KGenerator::KGenerator()
+    : ASTGenerator(keywords)
+    , d(new KGeneratorPrivate)
 {
     //forward declaration:
-    expr         = VERTEX();
-    resolve_elt  = VERTEX();
+    d->expr         = VERTEX();
+    d->resolve_elt  = VERTEX();
+    d->cns_root     = VERTEX();
 
-    cns_root     = VERTEX();
     EDGES(cns_root, cns_root, {KEYWORD_PUBLIC,KEYWORD_PROTECTED,KEYWORD_PRIVATE},
           [=](){return access_modifier();});
 
@@ -288,7 +290,8 @@ ASTGeneratorK::ASTGeneratorK()
 
 }
 void ASTGeneratorK::CALL_RESOLVE_ELT(int v, int after) {
-    CALL(v, resolve_elt, after, {TOKEN_SC2, TOKEN_IDENT, KEYWORD_OPERATOR},
+    CALL(v, resolve_elt, after,
+    {TOKEN_SC2, TOKEN_IDENT, KEYWORD_OPERATOR},
          [=](){return resolve_begin_full();});
 }
 void ASTGeneratorK::CALL_RESOLVE_ELT_SIMPLE(int v, int after) {
@@ -302,7 +305,8 @@ void ASTGeneratorK::CALL_COMPLEX_EXPR(int v, int after) {
          [=](){return expr_begin();});
 }
 void ASTGeneratorK::CALL_SIMPLE_EXPR(int v, int after) {
-    ASTGenerator::CALL(v, expr, after, {TOKEN_INT, TOKEN_OPERATOR,
+    ASTGenerator::CALL(v, expr, after,
+    {TOKEN_INT, TOKEN_OPERATOR,
                           TOKEN_FLOAT,TOKEN_STR1,TOKEN_STR2,
                           TOKEN_SC2, TOKEN_IDENT},
          [=](){return expr_begin_simple();});

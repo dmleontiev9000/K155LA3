@@ -7,6 +7,8 @@ win32-msvc* {
 } else:*-g++ {
     SYNTAX_ONLY = -fsyntax-only
     QMAKE_CXXFLAGS += -include $$OUT_PWD/../core/config.h
+    QMAKE_CXXFLAGS += -fvisibility=hidden
+    QMAKE_LFLAGS   += -fvisibility=hidden
 } else {
     error("unsupported compiler")
 }

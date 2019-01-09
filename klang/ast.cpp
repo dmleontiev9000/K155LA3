@@ -1,5 +1,7 @@
 #include "ast.h"
 #include "syntaxerrors.h"
+#include <QVector>
+#include <QStack>
 
 namespace K {
 namespace Lang {
@@ -49,7 +51,7 @@ using namespace K::Lang;
 namespace {
     enum class State { VERTEX, ENTRY, EDGE };
     struct ContextP {
-        QVector<int>     stack;
+        QStack<int>      stack;
         State            current_state;
         int              current_vertex;
         int              current_edge;
@@ -81,7 +83,7 @@ ASTGenerator::~ASTGenerator()
     delete d;
 }
 
-K::Lang::ASTGenerator::RC ASTGenerator::iteration(Context *context, const String *s, const InterruptTest &itest)
+K::Lang::RC ASTGenerator::iteration(Context *context, const String *s, const InterruptTest &itest)
 {
     auto current = (ContextP*)context->d;
     const auto& vertices = d->vertices;
@@ -102,7 +104,7 @@ K::Lang::ASTGenerator::RC ASTGenerator::iteration(Context *context, const String
                     }
                     return RC::SUCCESS;
                 }
-                current->current_vertex = current->stack.takeLast();
+                current->current_vertex = current->stack.pop();
                 Q_ASSERT(current->current_vertex < vertices.size());
                 Q_ASSERT(current->current_vertex >= 0);
             }
@@ -128,7 +130,12 @@ K::Lang::ASTGenerator::RC ASTGenerator::iteration(Context *context, const String
             Q_ASSERT(current->current_edge < edges.size());
             //search for exit edges
             while(current->current_edge >= 0) {
-                if (edges[current->current_edge].input == current->last_token) {
+                //input >= 0 && current_token == input
+                //input <  0 && current_token >= 0
+                auto input = edges[current->current_edge].input;
+                bool match = (input < 0) |
+                        (current->last_token == input);
+                if (match) {
                     if (edges[current->current_edge].chk) {
                         RC rc = edges[current->current_edge].chk(itest);
                         if (rc == RC::IGNORE)
@@ -140,12 +147,18 @@ K::Lang::ASTGenerator::RC ASTGenerator::iteration(Context *context, const String
                 current->current_edge = edges[current->current_edge].next;
                 Q_ASSERT(current->current_edge < edges.size());
             }
-            if (current->current_edge < 0)
-                return RC::INTERNAL_ERROR;
+            if (current->current_edge < 0) {
+                context->set_error(current->last_token < 0 ?
+                    SyntaxErrors::unexpected_end_of_statement :
+                    SyntaxErrors::unexpected_token);
+                return RC::ERROR;
+            }
             current->current_vertex = edges[current->current_edge].target;
-            if (edges[current->current_edge].push > 0)
-                current->stack.push_back(edges[current->current_edge].push);
-            current->current_state = State::VERTEX;
+            if (edges[current->current_edge].push >= 0) {
+                current->stack.push(edges[current->current_edge].push);
+            } else {
+                current->current_state = State::VERTEX;
+            }
             break;
         default:
             return RC::INTERNAL_ERROR;
@@ -183,6 +196,9 @@ ASTGeneratorPrivate::Edge& ASTGeneratorPrivate::EDGE(int v, int to, int tok, AST
     edges.append(e);
     vertices[v].edg_last = n;
     return edges.last();
+}
+void ASTGenerator::EDGE(int v, int to, int tok, Callback chk) {
+    d->EDGE(v, to, tok, chk);
 }
 void ASTGeneratorPrivate::EDGES(int v, int to, std::initializer_list<int> toks, ASTGenerator::Callback chk) {
     for(auto i = toks.begin(); i != toks.end(); ++i)

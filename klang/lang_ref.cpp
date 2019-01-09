@@ -1,6 +1,6 @@
 #include "lang_p.h"
 
-using namespace K::Lang::Internal;
+using namespace K::Lang;
 
 Reference * Reference::linkSourceAndTarget(Node * src, Node * tgt, unsigned at)
 {

@@ -147,6 +147,15 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                     goto __digit;
                 }
             }
+            else if (i+1 < str->string_length) {
+                auto c = sym(str->symbols[i+1]);
+                if (c=='>') {
+                    ctx->token_out = TOKEN_OPERATOR;
+                    ctx->detail = tstr('-','>');
+                    i+=2;
+                    break;
+                }
+            }
         }
 
         if (s > 127 || !strchr(symset, int(s))) {
@@ -327,9 +336,11 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         switch (i - ctx->start) {
         case 1:
             ctx->token_out = TOKEN_DOT;
+            ctx->detail = tstr('.');
             break;
         case 3:
             ctx->token_out = TOKEN_DOT3;
+            ctx->detail = tstr('.','.','.');
             break;
         default:
             ctx->token_out = TOKEN_ERROR;

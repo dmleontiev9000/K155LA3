@@ -60,10 +60,10 @@ public:
     Tokenizer(const KW * kws);
     virtual ~Tokenizer();
 
-    inline static constexpr int tstr(char c1, char c2 = 0, char c3 = 0) {
-        int q = c1;
-        if (c2) q = (q<<8)|int(c2);
-        if (c3) q = (q<<8)|int(c3);
+    inline static constexpr uint tstr(char c1, char c2 = 0, char c3 = 0) {
+        uint q = uint(c1);
+        if (c2) q = (q<<8)|uint(c2);
+        if (c3) q = (q<<8)|uint(c3);
         return q;
     }
     bool tokenize(const String * __restrict__ str, Tokenizer::Context * __restrict__ ctx);

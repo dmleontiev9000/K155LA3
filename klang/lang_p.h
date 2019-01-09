@@ -8,18 +8,17 @@
 #include <QObject>
 #include <QVector>
 #include <QMultiHash>
-#include <QElapsedTimer>
 #include <QVariant>
 
 namespace K {
 namespace Lang {
-namespace Internal {
 
 struct Node;
 struct Reference;
 struct Metadata;
-struct Tokenizer;
-struct Node {//~128 bytes
+
+class Node {//~128 bytes
+public:
     Node(){}
     ~Node();
     ContextPrivate * context;
@@ -27,7 +26,7 @@ struct Node {//~128 bytes
     quint32     namestart = 0, nameend = 0;
     //parent-chil
     String    * text        = nullptr;
-    Tokenizer* parserdata  = nullptr;
+    Tokenizer * parserdata  = nullptr;
     Metadata  * metadata    = nullptr;
     //children linkage
     Node      * parent;
@@ -47,15 +46,16 @@ struct Node {//~128 bytes
 
     void invalidate();
     void invalidate_data();
-    int  parse(QElapsedTimer * timer, int max);
-    int  blocked(QElapsedTimer * timer, int max);
-    int  finalize(QElapsedTimer * timer, int max);
+    int  parse(const InterruptTest&);
+    int  blocked(const InterruptTest&);
+    int  finalize(const InterruptTest&);
 
     void attachToWorkset(Node ** set);
     void detachFromWorkset();
 };
 
-struct Reference {
+class Reference {
+public:
     Reference   ** prev_target;
     Reference    * next_target;
     Reference   ** prev_source;
@@ -71,47 +71,41 @@ struct Reference {
     static Reference *reaimReference(Reference * ptr, Node * newtgt);
 };
 
-
 struct K_LANG_EXPORT Metadata {
     void unref();
 };
-
-} //namespace Internal
-
-typedef Internal::Node PNode;
-typedef Internal::Reference PReference;
-typedef Internal::String PString;
 
 class ContextPrivate {
 public:
     ContextPrivate();
     ~ContextPrivate();
 
-    boost::object_pool<PNode>      * nodepool;
-    boost::object_pool<PReference> * refpool;
-    K::EditUtils::AssetPool        * assetpool;
-    PNode                          * workset_invalidate = nullptr;
-    PNode                          * workset_parse      = nullptr;
-    PNode                          * workset_blocked    = nullptr;
-    PNode                          * workset_blocked2   = nullptr;
-    PNode                          * workset_finalize   = nullptr;
     int                              event              = -1;
+    boost::object_pool<Node>       * nodepool;
+    boost::object_pool<Reference>  * refpool;
+    K::EditUtils::AssetPool        * assetpool;
+    Node                           * workset_invalidate = nullptr;
+    Node                           * workset_parse      = nullptr;
+    Node                           * workset_blocked    = nullptr;
+    Node                           * workset_blocked2   = nullptr;
+    Node                           * workset_finalize   = nullptr;
+    QMultiHash<Node, Node>           dep_map;
 
-    static PNode      * node();
-    static void         destroy(PNode *);
-    static PReference * reference();
-    static void         destroy(PReference *);
-    static PString    * string(uint nchars);
+    static Node       * node();
+    static void         destroy(Node *);
+    static Reference *  reference();
+    static void         destroy(Reference *);
+    static String    *  string(uint nchars);
 
     void bind();
     void unbind();
-    bool process(QElapsedTimer * timer, int max);
-    bool process_invalidate_workset(QElapsedTimer * timer, int max);
-    bool process_parse_workset(QElapsedTimer * timer, int max);
-    bool process_type_workset(QElapsedTimer * timer, int max);
-    bool process_blocked_workset(QElapsedTimer * timer, int max);
-    bool process_finalize_workset(QElapsedTimer * timer, int max);
-    bool process_totally_blocked(QElapsedTimer * timer, int max);
+    bool process(const InterruptTest& itest);
+    bool process_invalidate_workset(const InterruptTest& itest);
+    bool process_parse_workset(const InterruptTest& itest);
+    bool process_type_workset(const InterruptTest& itest);
+    bool process_blocked_workset(const InterruptTest& itest);
+    bool process_finalize_workset(const InterruptTest& itest);
+    bool process_totally_blocked(const InterruptTest& itest);
 };
 
 } //namespace Lang

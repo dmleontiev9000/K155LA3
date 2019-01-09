@@ -7,6 +7,21 @@
 namespace K {
 namespace Lang {
 
+enum class RC {
+    CONTINUE,
+    SUCCESS,
+    ERROR,
+    INTERNAL_ERROR,
+    BLOCKED,
+    INTERRUPTED,
+    IGNORE,
+};
+typedef K::function<bool ()> InterruptTest;
+
+class K_LANG_EXPORT Node;
+class K_LANG_EXPORT Reference;
+class K_LANG_EXPORT Signature;
+
 class ContextPrivate;
 class K_LANG_EXPORT Context : public QObject
 {
@@ -14,10 +29,8 @@ class K_LANG_EXPORT Context : public QObject
 public:
     explicit Context(QObject *parent = nullptr);
     ~Context();
-
 private:
     ContextPrivate * d;
-
     void timerEvent(QTimerEvent *event);
 };
 

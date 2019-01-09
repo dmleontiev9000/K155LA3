@@ -1,11 +1,9 @@
 #pragma once
 
+#include <../core/compat.h>
 #include "klang_global.h"
 #include "tokenizer.h"
-#include "lang_p.h"
-#include <../core/compat.h>
-#include <QVector>
-#include <QElapsedTimer>
+#include "lang.h"
 
 namespace K {
 namespace Lang {
@@ -21,15 +19,6 @@ public:
         friend class K::Lang::ASTGenerator;
         void * d;
     };
-    enum class RC {
-        CONTINUE,
-        SUCCESS,
-        ERROR,
-        INTERNAL_ERROR,
-        BLOCKED,
-        INTERRUPTED,
-        IGNORE,
-    };
 
     typedef K::function<RC (const InterruptTest&)> Callback;
 
@@ -40,6 +29,7 @@ protected:
                  const String* s,
                  const InterruptTest& itest);
     int  VERTEX(Callback cb = Callback());
+    void EDGE(int v, int to, int token, Callback chk = Callback());
     void EDGES(int v, int to, std::initializer_list<int> toks, Callback chk = Callback());
     void CALL(int v, int to, int after, std::initializer_list<int> toks, Callback chk = Callback());
     void CALL(int v, int to, int after, int token, Callback chk = Callback());

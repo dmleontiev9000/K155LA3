@@ -1,113 +1,118 @@
 #pragma once
 
 #include "klang_global.h"
-#include "k_tokenizer.h"
 #include "ast.h"
+#include "lang.h"
+
 namespace K {
 namespace Lang {
-namespace Internal {
 
-struct ASTContext {
-    String * s,
-                      int& token_out, int& error,
-                      int& start, int& end,
-                      QVariant * variant
-};
-class ASTGeneratorK
-        : public virtual ASTGenerator
-        , public virtual TokenizerK
+class KGeneratorPrivate;
+class K_LANG_EXPORT KGenerator : public ASTGenerator
 {
 public:
-    ASTGeneratorK();
+    KGenerator();
+    virtual ~KGenerator();
 
+    class Context : public ASTGenerator::Context {
+    public:
+        virtual ~Context();
+    protected:
+        Context();
+    };
+
+    Context * createContext(Node * node);
+private:
+    KGeneratorPrivate * d;
 protected:
-    /*
-     * element resolver
-     */
-    virtual int resolve_begin_simple()=0;
-    virtual int resolve_begin_full()=0;
-    virtual int resolve_this()=0;
-    virtual int resolve_simple_type()=0;
-    virtual int resolve_end()=0;
-    virtual int resolve_to_root()=0;
-    virtual int resolve_element()=0;
-    virtual int resolve_operator()=0;
-    virtual int resolve_operator_brackets()=0;
-    virtual int resolve_operator_index()=0;
-    virtual int resolve_template_begin()=0;
-    virtual int resolve_template_arg_name()=0;
-    virtual int resolve_template_contains_arg()=0;
-    virtual int resolve_template_arg()=0;
-    virtual int resolve_template_end()=0;
-    virtual int resolve_arg_begin()=0;
-    virtual int resolve_arg_modifier()=0;
-    virtual int resolve_arg_type()=0;
-    virtual int resolve_arg_next()=0;
-    virtual int resolve_arg_end()=0;
-    virtual int resolve_postmod()=0;
-    /*
-     * expression compiler
-     */
 protected:
-    int expr_begin();
-    int expr_end();
-    int expr_begin_simple();
-    int expr_prefix_operator();
-    int expr_postfix_operator();
-    int expr_member_operator();
-    int expr_operator();
-    int expr_attrib_operator();
-    int expr_call_operator();
-    int expr_call_arg_name();
-    int expr_call_arg_value();
-    int expr_call_end();
-    int expr_assign();
-    int expr_subexpr_start();
-    int expr_subexpr_end();
-    int expr_immediate();
-    int expr_element();
 private:
     std::vector<bool> mSimpleFlag;
 protected:
     /*
      * element generators
      */
-    int access_modifier();
-    int gen_class();
-    int gen_struct();
-    int gen_enum();
-    int gen_flags();
-    int gen_namespace();
-    int gen_unk();
-    int gen_function();
-    int element_name();
-    int element_completed();
-    int element_type();
-    int func_arg_type();
-    int func_arg_name();
-    /*
-     * class parameter generators
-     */
-    virtual int cls_add_parameter_cls()=0;
-    virtual int cls_add_parameter_imm()=0;
-    virtual int cls_def_parameter()=0;
-    virtual int cls_end_template()=0;
-    virtual int cls_derive_access()=0;
-    virtual int cls_add_parent()=0;
 private:
-    //element resolution(A::B::C, ::X::operator Y, foo)
-    int resolve_elt;
+    /*
+     * keywords
+     */
+    void langInit();
+    void langAddResolve();
     void CALL_RESOLVE_ELT(int v, int after);
     void CALL_RESOLVE_ELT_SIMPLE(int v, int after);
-    //simple expression(must be computable at compile time)
-    //resolves to constant or type reference
-    int expr;
+    void langAddExpr();
     void CALL_COMPLEX_EXPR(int v, int after);
     void CALL_SIMPLE_EXPR(int v, int after);
-    int cns_root;
+
+    static KW keywords[];
+    enum Keywords {
+        KEYWORD_MIN = T::TOKEN_MAX,
+        //keywords
+        KEYWORD_CONST,
+        KEYWORD_VOLATILE,
+        KEYWORD_STATIC,
+        KEYWORD_FINAL,
+        KEYWORD_MUTABLE,
+        KEYWORD_VIRTUAL,
+
+        KEYWORD_IN,
+        KEYWORD_OUT,
+        KEYWORD_INOUT,
+
+        KEYWORD_INT,
+        KEYWORD_UINT,
+        KEYWORD_BITVEC,
+        KEYWORD_TYPE,
+        KEYWORD_THIS,
+
+        KEYWORD_PRIVATE,
+        KEYWORD_PUBLIC,
+        KEYWORD_PROTECTED,
+
+        KEYWORD_ENUM,
+        KEYWORD_FLAGS,
+        KEYWORD_TYPEDEF,
+        KEYWORD_NAMESPACE,
+        KEYWORD_STRUCT,
+        KEYWORD_CLASS,
+
+        KEYWORD_CONSTRUCTOR,
+        KEYWORD_DESTRUCTOR,
+        KEYWORD_OPERATOR,
+        KEYWORD_OPERATOR_MEM,
+        KEYWORD_OPERATOR_POST,
+        KEYWORD_OPERATOR_PREF,
+        KEYWORD_NEW,
+        KEYWORD_DELETE,
+        KEYWORD_MOVE,
+        KEYWORD_COPY,
+        KEYWORD_PROPERTY,
+        KEYWORD_FUNCTION,
+        KEYWORD_RETURN,
+        KEYWORD_VAR,
+        KEYWORD_SLOT,
+        KEYWORD_SIGNAL,
+
+        KEYWORD_SIZEOF,
+        KEYWORD_TYPEOF,
+        KEYWORD_OFFSETOF,
+        KEYWORD_ALIGNOF,
+
+        KEYWORD_ASSERT,
+
+        KEYWORD_IF,
+        KEYWORD_ELSE,
+
+        KEYWORD_FOR,
+        KEYWORD_WHILE,
+        KEYWORD_BREAK,
+        KEYWORD_CONTINUE,
+
+        KEYWORD_SWITCH,
+        KEYWORD_CASE,
+        KEYWORD_DEFAULT,
+    };
 };
 
-
-} //namespace Internal
 } //namespace Lang
 } //namespace K
