@@ -3,7 +3,7 @@
 #include <../core/compat.h>
 #include "klang_global.h"
 #include "tokenizer.h"
-#include "lang.h"
+#include "context.h"
 
 namespace K {
 namespace Lang {

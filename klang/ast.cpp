@@ -1,5 +1,4 @@
 #include "ast.h"
-#include "syntaxerrors.h"
 #include <QVector>
 #include <QStack>
 
@@ -99,7 +98,7 @@ K::Lang::RC ASTGenerator::iteration(Context *context, const String *s, const Int
             if (current->current_vertex < 0) {
                 if (current->stack.isEmpty()) {
                     if (context->end() < s->string_length) {
-                        context->set_error(SyntaxErrors::unexpected_tokens_past_end);
+                        error("Unexpected tokens at end", context->start(), s->string_length);
                         return RC::ERROR;
                     }
                     return RC::SUCCESS;
@@ -148,9 +147,12 @@ K::Lang::RC ASTGenerator::iteration(Context *context, const String *s, const Int
                 Q_ASSERT(current->current_edge < edges.size());
             }
             if (current->current_edge < 0) {
-                context->set_error(current->last_token < 0 ?
-                    SyntaxErrors::unexpected_end_of_statement :
-                    SyntaxErrors::unexpected_token);
+                if (current->last_token < 0)
+                    error("Unexpected end of statement",
+                          context->start(), s->string_length);
+                else
+                    error("Unexpected token",
+                          context->start(), context->end());
                 return RC::ERROR;
             }
             current->current_vertex = edges[current->current_edge].target;
