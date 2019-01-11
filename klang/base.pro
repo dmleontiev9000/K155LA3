@@ -18,7 +18,6 @@ DEPENDPATH  += $$PWD/../edit_utils
 LIBS        += -ledit_utils
 
 SOURCES += \
-    syntaxerrors.cpp \
     str.cpp \
     ast.cpp \
     tokenizer.cpp \
@@ -28,7 +27,6 @@ SOURCES += \
 
 HEADERS += \
     klang_global.h \
-    syntaxerrors.h \
     str.h \
     ast.h \
     tokenizer.h \
