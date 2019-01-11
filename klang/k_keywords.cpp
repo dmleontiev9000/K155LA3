@@ -3,6 +3,7 @@
 using namespace K::Lang;
 
 Tokenizer::KW K::Lang::KGenerator::keywords[] = {
+    _KW("void",     KEYWORD_VOID),
     _KW("int?",     KEYWORD_INT),
     _KW("uint?",    KEYWORD_UINT),
     _KW("bitvec?",  KEYWORD_BITVEC),
