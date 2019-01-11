@@ -5,6 +5,11 @@
 using namespace K::Lang;
 using namespace K::Lang::S;
 
+String * String::alloc(K::EditUtils::AssetPool * pool, uint len) {
+    String * out = (String*)pool->alloc(sizeof(String)+sizeof(Symbol)*len);
+    out->string_length = len;
+    return out;
+}
 String::Symbol sym(QChar c) {
     String::Symbol s = c.unicode();
     if (c.isDigit()) {

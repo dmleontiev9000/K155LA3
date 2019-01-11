@@ -17,6 +17,7 @@ enum {
 
     COLOR_TYPE,
     COLOR_MEMBER,
+    COLOR_ARGUMENT,
     COLOR_METHOD,
     COLOR_VIRTMETHOD,
     COLOR_COMMENT,
@@ -63,13 +64,25 @@ struct K_LANG_EXPORT String : public K::EditUtils::Element {
     
     void colorify(uint from, uint to, uint attr);
     void decolorify();
+
+    static String * alloc(K::EditUtils::AssetPool * pool, uint len);
+    void bind(String ** pointer) {
+        if (pointer) *pointer = this;
+        handle  = (Element**)pointer;
+    }
 };
+
+namespace S {
+
 inline quint32 sym(String::Symbol s) { return s & 0xffffu; }
 inline quint32 symtype(String::Symbol s) { return (s>>16) & 0x1fu; }
+inline quint32 symtype2(String::Symbol s) { return s & 0x1fffffu; }
 inline quint32 symattr(String::Symbol s) { return (s>>21) & 0x7ffu; }
-K_LANG_EXPORT String::Symbol sym(QChar c);
 inline String::Symbol sym(String::Symbol s, quint32 attr)
 { return (String::Symbol)((s & 0x001fffff) | (attr<<21)); }
+K_LANG_EXPORT String::Symbol sym(QChar c);
+
+} //namespace S
 
 } //namespace Lang
 } //namespace K
