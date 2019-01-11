@@ -67,6 +67,8 @@ public:
         return q;
     }
     bool tokenize(const String * __restrict__ str, Tokenizer::Context * __restrict__ ctx);
+    virtual void error(const char * msg, uint start, uint end) = 0;
+    virtual void warning(const char * msg, uint start, uint end) = 0;
 private:
     Q_DISABLE_COPY(Tokenizer)
     const KW * keywords;

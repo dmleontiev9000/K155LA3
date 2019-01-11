@@ -1,5 +1,4 @@
 #include "str.h"
-#include "syntaxerrors.h"
 #include <string.h>
 
 using namespace K::Lang;

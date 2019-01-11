@@ -1,5 +1,4 @@
 #include "tokenizer.h"
-#include "syntaxerrors.h"
 
 using namespace K::Lang;
 using namespace K::Lang::S;
@@ -95,7 +94,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             if (symtype(str->symbols[i]) != st)
                 break;
         }
-        ctx->start = i;
+        ctx->start = ctx->end = i;
         if (ctx->start >= str->string_length)
             return false;
         s    = sym(str->symbols[i]);
@@ -201,6 +200,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             }
         }
 
+        bool     err   = false;
         bool     null  = true; //no digits (like "0x\EOL" or "0b->")
         unsigned c;
 
@@ -213,20 +213,25 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
 
             uint n = indexofc-digits;
             if (n >= mul) {
-                ctx->detail = SyntaxErrors::invalid_characters_in_constant;
+                error("Invalid characters in constant", i, i+1);
+                err = true;
                 break;
             }
             auto sum2 = sum*mul + n;
             if (sum2 < sum) {
-                ctx->detail = SyntaxErrors::integer_contant_is_too_large;
+                error("Integer contant too large", ctx->start, i+1);
+                err = true;
                 break;
             }
             sum = sum2;
         }
 
-        if (null) ctx->detail = SyntaxErrors::expected_integer_constant;
+        if (null) {
+            error("Expected integer constant", ctx->start, i+1);
+            err = true;
+        }
 
-        if (!ctx->detail) {
+        if (!err) {
             //floating point number
             if (i < str->string_length && c == '.' && mul == 10) {
                 //.123
@@ -266,16 +271,19 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                     (sym(str->symbols[i])| 0x20) == 'f')
                 {
                     ++i;
-                    if (Q_UNLIKELY (ctx->parseargs))
+                    if (ctx->parseargs)
                         ctx->variant = QVariant(strtof(tmpbuf, NULL));
                 } else {
-                    if (Q_UNLIKELY (ctx->parseargs))
+                    if (ctx->parseargs)
                         ctx->variant = QVariant(strtod(tmpbuf, NULL));
                 }
-                if (errno == ERANGE)
-                    ctx->detail = SyntaxErrors::floating_point_constant_out_of_range;
-                else if (errno)
-                    ctx->detail = SyntaxErrors::invalid_characters_in_constant;
+                if (errno == ERANGE) {
+                    error("Floating point constant out of range", ctx->start, i);
+                    err = true;
+                } else if (errno) {
+                    error("Invalid characters in constant", ctx->start, i);
+                    err = true;
+                }
                 ctx->token_out = TOKEN_FLOAT;
             } else {
                 //check for l and u suffixes
@@ -296,10 +304,12 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                 if (mul == 10 && !unsigned_int)
                     maxint = (minus ? (maxint+1):(maxint))>>1;
 
-                if (maxint > sum)
-                    ctx->detail = SyntaxErrors::integer_contant_is_too_large;
+                if (maxint > sum) {
+                    error("Integer contant too large", ctx->start, i);
+                    err = true;
+                }
 
-                if (Q_UNLIKELY (ctx->parseargs)) {
+                if (!err && ctx->parseargs) {
                     if (long_int) {
                         if (unsigned_int)
                             ctx->variant = QVariant(qulonglong(sum));
@@ -316,16 +326,19 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             }
         }
 
-        while (i < str->string_length) {
-            auto st = symtype(str->symbols[i]);
-            if (st != SYM_LETTER && st != SYM_DIGIT && st != SYM_DOT)
-                break;
+        if (!err) {
+            while (i < str->string_length) {
+                auto st = symtype(str->symbols[i]);
+                if (st != SYM_LETTER && st != SYM_DIGIT && st != SYM_DOT)
+                    break;
 
-            ctx->detail = SyntaxErrors::invalid_characters_in_constant;
-            ++i;
+                error("Invalid characters in constant", ctx->start, i);
+                err = true;
+                ++i;
+            }
         }
 
-        if (ctx->detail)
+        if (err)
             ctx->token_out = TOKEN_ERROR;
         break;}
     case SYM_DOT:{
@@ -344,7 +357,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             break;
         default:
             ctx->token_out = TOKEN_ERROR;
-            ctx->detail = SyntaxErrors::invalid_operator;
+            error("invalid operator", ctx->start, i);
         }
         break;}
     case SYM_EQUAL_SIGN:{
@@ -362,7 +375,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             break;
         default:
             ctx->token_out = TOKEN_ERROR;
-            ctx->detail = SyntaxErrors::invalid_operator;
+            error("invalid operator", ctx->start, i);
         }
         break;}
     case SYM_SEMICOLON:{
@@ -379,7 +392,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             break;
         default:
             ctx->token_out = TOKEN_ERROR;
-            ctx->detail = SyntaxErrors::invalid_operator;
+            error("invalid operator", ctx->start, i);
         }
         break;}
     case SYM_LBRACKET:{
@@ -442,6 +455,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                         }
                         break;}
                     default:
+                        warning("unknown escape sequence", i-1, i+1);
                         sout.append(QChar(c));break;
                     }
                     slash = false;
@@ -470,14 +484,14 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         }
         if (!fin) {
             ctx->token_out = TOKEN_ERROR;
-            ctx->detail = SyntaxErrors::string_not_terminated;
+            error("String not terminated", ctx->start, i);
         } else {
             ctx->token_out = (st == SYM_STR2 ? TOKEN_STR2:TOKEN_STR1);
         }
         break;}
     default:
         ctx->token_out = TOKEN_ERROR;
-        ctx->detail = SyntaxErrors::invalid_symbol;
+        error("invalid symbol", ctx->start, ctx->start+1);
         ++i;
     }
     ctx->end = i;
