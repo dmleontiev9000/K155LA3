@@ -18,9 +18,9 @@ enum class RC {
 };
 typedef K::function<bool ()> InterruptTest;
 
-class K_LANG_EXPORT Node;
-class K_LANG_EXPORT Reference;
-class K_LANG_EXPORT Signature;
+class Node;
+class Reference;
+class Signature;
 
 class ContextPrivate;
 class K_LANG_EXPORT Context : public QObject
@@ -29,8 +29,10 @@ class K_LANG_EXPORT Context : public QObject
 public:
     explicit Context(QObject *parent = nullptr);
     ~Context();
+
 private:
-    ContextPrivate * d;
+    friend class Node;
+    ContextPrivate * const d;
     void timerEvent(QTimerEvent *event);
 };
 
