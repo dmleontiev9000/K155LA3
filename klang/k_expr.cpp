@@ -1,6 +1,6 @@
 #include "k_ast.h"
 #include "k_ast_p.h"
-#include "syntaxerrors.h"
+#include "errors.h"
 using namespace K::Lang;
 using namespace K::Lang::T;
 

@@ -2,7 +2,7 @@
 
 #include "klang_global.h"
 #include "ast.h"
-#include "lang.h"
+#include "context.h"
 
 namespace K {
 namespace Lang {

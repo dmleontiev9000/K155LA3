@@ -1,5 +1,5 @@
 #include "k_ast.h"
-#include "syntaxerrors.h"
+#include "errors.h"
 #include "k_ast_p.h"
 
 using namespace K::Lang;
@@ -11,29 +11,29 @@ using namespace K::Lang::T;
  *
  * *root
  *   |
- *   +--class A
+ *   +--class A (11)
  *   |   |
- *   |   +--func lol()
+ *   |   +--func lol() (8)
  *   |
- *   +--namespace B
+ *   +--namespace B (10)
  *   |   |
- *   |   +--class C : public A
+ *   |   +--class C : public A (9)
  *   |   |   |
- *   |   |   +--[public A]
+ *   |   |   +--[public A] (7)
  *   |   |   |
- *   |   |   +--int member1
+ *   |   |   +--int member1 (6)
  *   |   |   |
- *   |   |   +--func foo(int b)
+ *   |   |   +--func foo(int b) (5)
  *   |   |   |   |
- *   |   |   |   +--[int b]
+ *   |   |   |   +--[int b] (3)
  *   |   |   |   |
- *   |   |   |   +--something;
+ *   |   |   |   +--something; (2)
  *   |   |   |   |
- *   |   |   |   +--if (b > member1)
+ *   |   |   |   +--if (b > member1) (1)
  *   |   |   |   |   |
  *   |   |   |   |   +--member2=lol()+member1; <<we are here
  *   |   |   |
- *   |   |   +--float member2
+ *   |   |   +--float member2 (4)
  *   |   |   |
  *
  *  our search order:
@@ -52,9 +52,49 @@ using namespace K::Lang::T;
  */
 
 KContextPrivate::Resolver::~Resolver() {
-    if (scope) scope->unref();
-    if (iterator) iterator->unref();
+    clearPath();
 }
+
+bool  KContextPrivate::Resolver::check() {
+    for(auto i = callstack.constBegin();
+        i != callstack.constEnd(); ++i) {
+        if (!i->get())
+            return false;
+    }
+    for(auto i = matches.constBegin();
+        i != matches.constEnd(); ++i) {
+        if (!i->get())
+            return false;
+    }
+    return iterator.get() != nullptr;
+}
+Node* KContextPrivate::Resolver::popPath() {
+    if (callstack.isEmpty())
+        return nullptr;
+    auto ref = callstack.pop();
+    auto q = ref->get();
+    delete ref;
+    return q;
+}
+void KContextPrivate::Resolver::pushPath(Node *node) {
+    callstack.push(new Reference(node));
+}
+void KContextPrivate::Resolver::clearPath() {
+    for(auto i = callstack.constBegin();
+        i != callstack.constEnd(); ++i)
+        delete *i;
+    callstack.clear();
+}
+void KContextPrivate::Resolver::addMatch(Node *node) {
+    matches.push(new Reference(node));    
+}
+void KContextPrivate::Resolver::clearMatches() {
+    for(auto i = matches.constBegin();
+        i != matches.constEnd(); ++i)
+        delete *i;
+    matches.clear();
+}
+
 IV(resolve_begin, bool onlytypes) {
     /*
      * full: resolves every element
@@ -65,7 +105,9 @@ IV(resolve_begin, bool onlytypes) {
 
     auto r       = new Resolver();
     r->onlytypes = onlytypes;
-    r->state     = Resolver::U|Resolver::P;
+    r->cangoup   = true;
+    r->cangocls  = true;
+    r->isfinal   = false;
     switch(p->type()) {
     case NODE_NAMESPACE:
     case NODE_CLASS:
@@ -85,16 +127,13 @@ I(resolve_to_root) {
     if (stack.top()->type != RESOLVER)
         return RC::INTERNAL_ERROR;
     auto r = static_cast<Resolver*>(stack.top());
-    if (!(i->state && Resolver::U))
-        return RC::INTERNAL_ERROR;
-
     //find root node
     auto node = mNode;
     for(auto par  = node->parent(); par;) {
         node = par;
         par  = par->parent();
     }
-    r->state = Resolver::M;
+    r->state = 0;
     r->iterator = node->lastChild();
     return RC::CONTINUE;
 }
@@ -105,142 +144,118 @@ I(resolve_element) {
         return RC::INTERNAL_ERROR;
     auto r = static_cast<Resolver*>(stack.top());
     int rep_count = 0;
-    do {
+    for(;;) {
         Node *j, *p;
 
+        //check for events every 16th cycle
+        if ((++rep_count & 15)==0)
+            if (itest && !itest()) return RC::INTERRUPTED;
+        if (!r->check())
+            return RC::RESET;
+
         j = r->iterator.get();
-        if (!j) return RC::RESET;
         if (!j->complete()) return RC::BLOCKED;
 
-        bool skip = true;
         switch(j->type()) {
+        case NODE_ENUM:
+            if (r->onlytypes)
+                break;
         case NODE_NAMESPACE:
-        case NODE_TEMPLATE:
         case NODE_TYPE:
             if (matchNodeName(j)) {
+                r->cangoup  = false;
                 r->iterator = j->lastChild();
+                r->clearPath();
+                r->addMatch(j);
                 colorify(S::COLOR_MEMBER);
                 return RC::CONTINUE;
             }
             break;
-
         case NODE_PARENTTYPE:
             if (matchNodeName(j)) {
-                r->iterator = j->lastChild();
-                colorify(S::COLOR_MEMBER);
-                return RC::CONTINUE;
+                r->cangocls = false;
+                r->cangoup  = false;
+                r->clearPath();
+                r->addMatch(j);
+                colorify(S::COLOR_MEMBER, j);
+                r->iterator = j->declType();
+            } else if (r->cangocls) {
+                r->pushPath(j);
+                r->iterator = j->declType();
             }
-
-            //
-            reference(Node(j))
             break;
         case NODE_PARAMETER:
-            if (r->onlytypes & (j->declType() != NODE_TYPE))
+            if (r->onlytypes & !j->isType())
                 break;
-
+            if (matchNodeName(j)) {
+                r->cangoup  = false;
+                r->cangocls = false;
+                r->clearPath();
+                r->addMatch(j);
+                colorify(S::COLOR_MEMBER, j);
+                return RC::CONTINUE;
+            }
             break;
-
-        case NODE_FUNCTION:
         case NODE_VARIABLE:
-        case NODE_ENUM:
         case NODE_CONST:
         case NODE_ARGUMENT:
             if (r->onlytypes)
                 break;
             if (!matchNodeName(j))
                 break;
-            break;
-        default:;
-        }
-        if (!skip) {
-
-        }
-        if (!skip) {
-            r->variants.append(Reference::alloc(j));
-            r->state &= ~Resolver::U;
-        }
-
-        auto pj = j->previous();
-        if (!pj) {
-
-        }
-        switch(r->state) {
-        case Resolver::U: {
-            auto p = i->parent();
-            if (!p) goto not_found;
-            if (!p->valid()) goto reset;
-
-            if (p->type() == NODE_CLASS ||
-                p->type() == NODE_TEMPLATE ||
-                p->type() == NODE_NAMESPACE)
-                r->iterator.set(p->lastChild());
-            r->state = Resolver::MU;}
-        case Resolver::M: {
-            if (i )
-        }
-
-        case Resolver::MU:
-
-
-        }
-
-        /*
-         * if no more elements to search, either go up in
-         * hierarchy or
-         */
-        if (!r->iterator) {
-            if (!r->rsv_up) {
-                set_error(SyntaxErrors::identifier_not_found);
-                return RC::ERROR;
-            }
-            Node * p  = r->scope ? r->scope.target() : mNode;
-            Node * pp = p->parent();
-            if (!pp) {
-                set_error(SyntaxErrors::identifier_not_found);
-                return RC::ERROR;
-            }
-            Node * j = (pp->type() == NODE_SCOPE)
-                ? p : pp->lastChild();
-            if (!j) return RC::INTERNAL_ERROR;
-
-            r->scope.set(pp);
-            r->iterator.set(j);
-            continue;
-        }
-        Node * j = r->iterator.target();
-        if (!j->isReady())
-            return RC::BLOCKED;
-
-        bool skip = true;
-        switch(j->type()) {
-        case NODE_NAMESPACE:
-        case NODE_TYPE:
-            skip = false;
-            break;
-        case NODE_PARAMETER:
-            if (j->declType())
+            r->cangoup  = false;
+            r->cangocls = false;
+            r->isfinal  = true;
+            r->clearPath();
+            r->addMatch(j);
+            colorify(j->type == NODE_ARGUMENT ? 
+                         S::COLOR_ARGUMENT: 
+                         S::COLOR_MEMBER, j);
+            return RC::CONTINUE;
+        case NODE_TEMPLATE:
         case NODE_FUNCTION:
-        case NODE_VARIABLE:
-        case NODE_ENUM:
-        case NODE_CONST:
-        case NODE_ARGUMENT:
-            skip = !r->full;
+            //many functions can be found using the same name
+            //because of overloading
+            if (r->onlytypes && matchNodeName(j)) 
+                r->addMatch(j);
             break;
         default:;
         }
         /*
-         * check if element can be matched by identifier
+         * go to previous element in list, if any
          */
-        if (!skip)
-            skip = !j->matchName(identifier());
-        if (!skip) {
-
+        auto pj = j->previous();
+        if (!pj && !r->callstack.isEmpty()) {
+            //don't go up if callstack is not empty
+            //return to last item in stack
+            auto ref = r->callstack.pop();
+            auto j = ref.get();
+            Q_ASSERT(j);
+            delete ref;
+            pj = j->previous();
         }
-        r->iterator.set(j->prevNode());
-    } while(!i || i());
-    return RC::INTERRUPTED;
+        if (!pj && r->cangoup) {
+            auto pp = j->parent();
+            if (pp) {
+                if (!pp->valid()) 
+                    return RC::RESET;
+                pj = pp;
+                if (pp->type() == NODE_CLASS ||
+                    pp->type() == NODE_TEMPLATE ||
+                    pp->type() == NODE_NAMESPACE)
+                    pj = pp->lastChild();
+            }
+        }
+        if (!pj) {
+            if (r->matches.isEmpty()) {
+                set_error(SyntaxErrors::identifier_not_found);
+                return RC::ERROR;
+            }
+            return RC::CONTINUE;
+        }
+        r->iterator = pj;
+    }
 }
-
 I(resolve_this) {
     if (stack.isEmpty())
         return RC::INTERNAL_ERROR;
