@@ -38,14 +38,14 @@ class K_LANG_EXPORT Tokenizer {
 public:
     class K_LANG_EXPORT Context {
     public:
-        Context(bool parseargs);
+        Context();
         ~Context();
         uint token() const;
         uint detail() const;
         uint start() const;
         uint end() const;
-        void set_error(uint err);
         void next();
+        void set_error(const QString& e);
         const QVariant& data() const;
         QString getTokenAsQString(const String * s) const;
     private:
@@ -67,8 +67,8 @@ public:
         return q;
     }
     bool tokenize(const String * __restrict__ str, Tokenizer::Context * __restrict__ ctx);
-    virtual void error(const char * msg, uint start, uint end) = 0;
-    virtual void warning(const char * msg, uint start, uint end) = 0;
+    virtual void error(const char * msg, uint start, uint end);
+    virtual void warning(const char * msg, uint start, uint end);
 private:
     Q_DISABLE_COPY(Tokenizer)
     const KW * keywords;

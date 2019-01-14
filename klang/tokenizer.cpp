@@ -1,4 +1,8 @@
 #include "tokenizer.h"
+#include <cmath>
+#include <cstdint>
+#include <climits>
+#include <cfloat>
 
 using namespace K::Lang;
 using namespace K::Lang::S;
@@ -10,28 +14,21 @@ namespace {
         uint detail;
         uint start;
         uint end;
-        bool parseargs;
         QVariant variant;
+        QString error;
     };
 }
-Tokenizer::Context::Context(bool pa) {
+Tokenizer::Context::Context() {
     auto p = new ContextP;
     p->token_out = 0;
     p->detail    = 0;
     p->start     = 0;
     p->end       = 0;
-    p->parseargs = pa;
     d = p;
 }
 Tokenizer::Context::~Context() {
     delete (ContextP*)d;
 }
-void Tokenizer::Context::set_error(uint err) {
-    auto p = (ContextP*)d;
-    p->token_out = TOKEN_ERROR;
-    p->detail = err;
-}
-
 uint Tokenizer::Context::token() const
 {
     return ((ContextP*)d)->token_out;
@@ -39,6 +36,10 @@ uint Tokenizer::Context::token() const
 uint Tokenizer::Context::detail() const
 {
     return ((ContextP*)d)->detail;
+}
+void Tokenizer::Context::set_error(const QString &e) {
+    auto p = (ContextP*)d;
+    p->error = e;
 }
 uint Tokenizer::Context::start() const
 {
@@ -200,6 +201,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             }
         }
 
+        bool     iow   = false;
         bool     err   = false;
         bool     null  = true; //no digits (like "0x\EOL" or "0b->")
         unsigned c;
@@ -212,17 +214,14 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             null = false;
 
             uint n = indexofc-digits;
+            //some characters
             if (n >= mul) {
                 error("Invalid characters in constant", i, i+1);
                 err = true;
                 break;
             }
             auto sum2 = sum*mul + n;
-            if (sum2 < sum) {
-                error("Integer contant too large", ctx->start, i+1);
-                err = true;
-                break;
-            }
+            if (sum2 < sum) iow = true;
             sum = sum2;
         }
 
@@ -234,55 +233,86 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         if (!err) {
             //floating point number
             if (i < str->string_length && c == '.' && mul == 10) {
+                //we can't use strtod or strtof because they use locale and thus suck
+                auto dot   = i;
+                auto start = ctx->start + (minus?1:0);
+
                 //.123
                 for(++i; i < str->string_length; ++i) {
                     c = sym(str->symbols[i]);
                     if (c < '0' || c > '9') break;
                 }
+
+                double result = 0.0;
+                for(auto j = i-1; j > dot; --j) {
+                    result = 0.1*result + 0.1*(char(str->symbols[j])-'0');
+                }
+                double scale = 1.0;
+                for(auto j = dot-1;; --j)
+                {
+                    result = result + scale*(char(str->symbols[j])-'0');
+                    scale *= 10.0;
+                    if (j == start) break;
+                }
+                if (minus) result = -result;
+
+                int sexp = 0;
+                bool oor = false;
                 if (i < str->string_length) {
                     c = sym(str->symbols[i]);
                     //e+123
-                    if ((c | 0x20) == 'e') do {
-                        auto j = i+1;
-                        if (j >= str->string_length)
+                    if (tolower(c) == 'e') do {
+                        err = true;
+
+                        if (++i >= str->string_length)
                             break;
-                        c = sym(str->symbols[j]);
-                        if ((c == '+') || (c == '-'))
-                        if (++j >= str->string_length)
+                        auto cs = sym(str->symbols[i]);
+                        if ((cs == '+') || (cs == '-'))
+                            if (++i >= str->string_length)
+                                break;
+                        c = sym(str->symbols[i]);
+                        if ((c < '0') || (c > '9'))
                             break;
-                        c = sym(str->symbols[j]);
-                        if ((c < '0') || (c > '9')) break;
-                        for(++j; j < str->string_length; ++j) {
-                            c = sym(str->symbols[j]);
-                            if ((c < '0') || (c > '9')) break;
+
+                        uint exp = c - '0';
+                        err = false;
+
+                        for(++i; i < str->string_length; ++i) {
+                            c = sym(str->symbols[i]);
+                            if ((c < '0') || (c > '9'))
+                                break;
+                            exp = exp*10+(c-'0');
+                            if (exp > std::numeric_limits<int>::max())
+                                oor = true;
                         }
-                        i = j;
+                        sexp = (cs=='-') ? -int(exp) : int(exp);
                     } while(0);
                 }
-                //copy of value
-                char tmpbuf[i-ctx->start+0];
-                for(uint j = 0; j < i-ctx->start; ++j)
-                    tmpbuf[j] = char(str->symbols[ctx->start+j]);
-                tmpbuf[i-ctx->start] = 0;
 
-                //f suffix
-                errno = 0;
                 if (i < str->string_length &&
-                    (sym(str->symbols[i])| 0x20) == 'f')
+                    sym(tolower(sym(str->symbols[i])) == 'f'))
                 {
                     ++i;
-                    if (ctx->parseargs)
-                        ctx->variant = QVariant(strtof(tmpbuf, NULL));
+                    oor |= (sexp < -FLT_MAX_10_EXP) | (sexp > FLT_MAX_10_EXP);
+                    if (!err && !oor) {
+                        oor |= result > FLT_MAX;
+                        if (sexp) result *= pow(10, sexp);
+
+                        ctx->variant = QVariant(float(result));
+                    }
                 } else {
-                    if (ctx->parseargs)
-                        ctx->variant = QVariant(strtod(tmpbuf, NULL));
+                    oor |= (sexp < -DBL_MAX_10_EXP) | (sexp > DBL_MAX_10_EXP);
+                    if (!err && !oor) {
+                        if (sexp) result *= pow(10, sexp);
+                        oor |= result > DBL_MAX;
+                        ctx->variant = QVariant(result);
+                    }
                 }
-                if (errno == ERANGE) {
+                if (oor) {
                     error("Floating point constant out of range", ctx->start, i);
                     err = true;
-                } else if (errno) {
-                    error("Invalid characters in constant", ctx->start, i);
-                    err = true;
+                } else if (err) {
+                    error("Invalid floating point constant", ctx->start, i);
                 }
                 ctx->token_out = TOKEN_FLOAT;
             } else {
@@ -290,12 +320,17 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                 bool unsigned_int = false;
                 bool long_int     = false;
                 if (i < str->string_length) {
-                    c = sym(str->symbols[i]);
-                    if ((c | 0x20) == 'l') { ++i; long_int = true; }
+                    c = tolower(sym(str->symbols[i]));
+                    if (c == 'l') { ++i; long_int = true; }
                 }
                 if (i < str->string_length) {
-                    c = sym(str->symbols[i]);
-                    if ((c | 0x20) == 'u') { ++i; unsigned_int = true; }
+                    c = tolower(sym(str->symbols[i]));
+                    if (c  == 'u') { ++i; unsigned_int = true; }
+                }
+                if (iow) {
+                    error("Integer contant too large", ctx->start, i+1);
+                    err = true;
+                    break;
                 }
 
                 quint64 maxint = ~0u;
@@ -309,7 +344,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                     err = true;
                 }
 
-                if (!err && ctx->parseargs) {
+                if (!err) {
                     if (long_int) {
                         if (unsigned_int)
                             ctx->variant = QVariant(qulonglong(sum));
@@ -326,20 +361,21 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             }
         }
 
-        if (!err) {
-            while (i < str->string_length) {
-                auto st = symtype(str->symbols[i]);
-                if (st != SYM_LETTER && st != SYM_DIGIT && st != SYM_DOT)
-                    break;
+        while (i < str->string_length) {
+            auto st = symtype(str->symbols[i]);
+            if (st != SYM_LETTER && st != SYM_DIGIT && st != SYM_DOT)
+                break;
 
-                error("Invalid characters in constant", ctx->start, i);
-                err = true;
-                ++i;
-            }
+            error("Invalid characters in constant", ctx->start, i);
+            err = true;
+            ++i;
         }
 
         if (err)
             ctx->token_out = TOKEN_ERROR;
+        break;}
+    case SYM_COMMA: {
+        ctx->token_out = TOKEN_COMMA; ++i;
         break;}
     case SYM_DOT:{
         for(++i; i < str->string_length; ++i) {
@@ -371,7 +407,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             break;
         case 2:
             ctx->token_out = TOKEN_OPERATOR;
-            ctx->detail    = '=';
+            ctx->detail    = tstr('=');
             break;
         default:
             ctx->token_out = TOKEN_ERROR;
@@ -409,79 +445,66 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         break;}
     case SYM_STR1: case SYM_STR2: {
         bool slash = false, fin = false;
-        if (ctx->parseargs) {
-            QString sout;
-            for(++i; i < str->string_length; ++i) {
-                auto c = sym(str->symbols[i]);
-                if (slash) {
-                    switch(c) {
-                    case 'n': sout.append(QChar('\n'));break;
-                    case 'r': sout.append(QChar('\r'));break;
-                    case 't': sout.append(QChar('\t'));break;
-                    case 'v': sout.append(QChar('\v'));break;
-                    case 'b': sout.append(QChar('\b'));break;
-                    case 'x': {
-                        //2 hex sumbols: \x3F
-                        if ((i+2) < str->string_length) {
-                            int c0 = sym(str->symbols[i+1]) | 0x20;
-                            int c1 = sym(str->symbols[i+2]) | 0x20;
-                            auto pc0 = strchr(digits, c0);
-                            auto pc1 = strchr(digits, c1);
-                            if (!pc0 || !pc1) {
-                                sout.append(QChar('x'));break;
-                            }
-                            int code = (pc0-digits)*16 + (pc1-digits);
-                            sout.append(QChar(code));
-                            i+=2;
+        QString sout;
+        for(++i; i < str->string_length; ++i) {
+            auto c = sym(str->symbols[i]);
+            if (slash) {
+                switch(c) {
+                case 'n': sout.append(QChar('\n'));break;
+                case 'r': sout.append(QChar('\r'));break;
+                case 't': sout.append(QChar('\t'));break;
+                case 'v': sout.append(QChar('\v'));break;
+                case 'b': sout.append(QChar('\b'));break;
+                case 'x': {
+                    //2 hex sumbols: \x3F
+                    if ((i+2) < str->string_length) {
+                        int c0 = sym(str->symbols[i+1]) | 0x20;
+                        int c1 = sym(str->symbols[i+2]) | 0x20;
+                        auto pc0 = strchr(digits, c0);
+                        auto pc1 = strchr(digits, c1);
+                        if (!pc0 || !pc1) {
+                            sout.append(QChar('x'));break;
                         }
-                        break;}
-                    case 'u':{
-                        //4 hex symbols: \u2501
-                        if ((i+4) < str->string_length) {
-                            int c0 = sym(str->symbols[i+1]) | 0x20;
-                            int c1 = sym(str->symbols[i+2]) | 0x20;
-                            int c2 = sym(str->symbols[i+2]) | 0x20;
-                            int c3 = sym(str->symbols[i+3]) | 0x20;
-                            auto pc0 = strchr(digits, c0);
-                            auto pc1 = strchr(digits, c1);
-                            auto pc2 = strchr(digits, c2);
-                            auto pc3 = strchr(digits, c3);
-                            if (!pc0 || !pc1 || !pc2 || !pc3) {
-                                sout.append(QChar('u'));break;
-                            }
-                            int code = (pc0-digits)*4096 + (pc1-digits)*256 + (pc2-digits)*16 + (pc3-digits);
-                            sout.append(QChar(code));
-                            i+=4;
-                        }
-                        break;}
-                    default:
-                        warning("unknown escape sequence", i-1, i+1);
-                        sout.append(QChar(c));break;
+                        int code = (pc0-digits)*16 + (pc1-digits);
+                        sout.append(QChar(code));
+                        i+=2;
                     }
-                    slash = false;
-                } else if (c == '\\') {
-                    slash = true;
-                } else if (c == s){
-                    ++i;
-                    fin = true;
-                    break;
-                } else {
-                    sout.append(QChar(c));
+                    break;}
+                case 'u':{
+                    //4 hex symbols: \u2501
+                    if ((i+4) < str->string_length) {
+                        int c0 = sym(str->symbols[i+1]) | 0x20;
+                        int c1 = sym(str->symbols[i+2]) | 0x20;
+                        int c2 = sym(str->symbols[i+2]) | 0x20;
+                        int c3 = sym(str->symbols[i+3]) | 0x20;
+                        auto pc0 = strchr(digits, c0);
+                        auto pc1 = strchr(digits, c1);
+                        auto pc2 = strchr(digits, c2);
+                        auto pc3 = strchr(digits, c3);
+                        if (!pc0 || !pc1 || !pc2 || !pc3) {
+                            sout.append(QChar('u'));break;
+                        }
+                        int code = (pc0-digits)*4096 + (pc1-digits)*256 + (pc2-digits)*16 + (pc3-digits);
+                        sout.append(QChar(code));
+                        i+=4;
+                    }
+                    break;}
+                default:
+                    warning("unknown escape sequence", i-1, i+1);
+                    sout.append(QChar(c));break;
                 }
-            }
-            ctx->variant = QVariant(sout);
-        } else {
-            for(++i; i < str->string_length; ++i) {
-                auto c = sym(str->symbols[i]);
-                if (slash) {slash = false; continue; }
-                if (c == s) {
-                    ++i;
-                    fin = true;
-                    break;
-                }
-                slash = (c == '\\');
+                slash = false;
+            } else if (c == '\\') {
+                slash = true;
+            } else if (c == s){
+                ++i;
+                fin = true;
+                break;
+            } else {
+                sout.append(QChar(c));
             }
         }
+        ctx->variant = QVariant(sout);
         if (!fin) {
             ctx->token_out = TOKEN_ERROR;
             error("String not terminated", ctx->start, i);
@@ -517,4 +540,10 @@ static bool xstrcmp(const String::Symbol *s, uint n, const char * text, uint& de
         return i==n;
     } else
         return text[i] == 0;
+}
+void Tokenizer::error(const char * msg, uint , uint ) {
+    qDebug("ERROR: %s", msg);
+}
+void Tokenizer::warning(const char * msg, uint , uint ) {
+//    qDebug("WARINIG: %s", msg);
 }
