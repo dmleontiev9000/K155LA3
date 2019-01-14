@@ -4,11 +4,29 @@
 using namespace K::Lang;
 using namespace K::Lang::S;
 
+String * String::alloc(K::EditUtils::AssetPool * pool, const QString& text) {
+    uint len = text.length();
+    String * out = (String*)pool->alloc(sizeof(String)+sizeof(Symbol)*len);
+    out->string_length = len;
+    for(uint i = 0; i < len; ++i)
+        out->symbols[i] = S::sym(text[i]);
+    return out;
+}
+String * String::alloc(K::EditUtils::AssetPool *pool, const QLatin1String &text) {
+    uint len = text.size();
+    String * out = (String*)pool->alloc(sizeof(String)+sizeof(Symbol)*len);
+    out->string_length = len;
+    for(uint i = 0; i < len; ++i)
+        out->symbols[i] = S::sym(text[i]);
+    return out;
+}
+
 String * String::alloc(K::EditUtils::AssetPool * pool, uint len) {
     String * out = (String*)pool->alloc(sizeof(String)+sizeof(Symbol)*len);
     out->string_length = len;
     return out;
 }
+
 String::Symbol S::sym(QChar c) {
     String::Symbol s = c.unicode();
     if (c >= '0' && c <= '9') {

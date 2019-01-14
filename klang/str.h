@@ -67,6 +67,8 @@ struct K_LANG_EXPORT String : public K::EditUtils::Element {
     void decolorify();
 
     static String * alloc(K::EditUtils::AssetPool * pool, uint len);
+    static String * alloc(K::EditUtils::AssetPool * pool, const QString& text);
+    static String * alloc(K::EditUtils::AssetPool * pool, const QLatin1String& text);
     void bind(String ** pointer) {
         if (pointer) *pointer = this;
         handle  = (Element**)pointer;
