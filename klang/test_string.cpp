@@ -3,6 +3,7 @@
 using namespace K::Lang;
 StringTest::StringTest()
 {
+    qsrand(qHash(QDateTime::currentDateTime()));
 }
 StringTest::~StringTest()
 {
@@ -75,7 +76,6 @@ void StringTest::complexAllocation()
 {
     unsigned char text[]={"0123456789abcdef"};
     Q_ASSERT(pool != nullptr);
-    qsrand(qHash(QDateTime::currentDateTime()));
 
     const int N = 1000;
     String * strs[N];
