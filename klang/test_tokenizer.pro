@@ -5,9 +5,9 @@ TEMPLATE  = app
 QT       += testlib
 QT       -= gui
 
-INCLUDEPATH += $$PWD/../edit_utils
-DEPENDPATH  += $$PWD/../edit_utils
-LIBS        += -ledit_utils
+INCLUDEPATH += $$PWD/../editutils
+DEPENDPATH  += $$PWD/../editutils
+LIBS        += -leditutils
 
 HEADERS = \
     str.h \
@@ -18,3 +18,9 @@ SOURCES = \
     str.cpp \
     tokenizer.cpp \
     test_tokenizer.cpp
+
+QMAKE_RPATHDIR += $ORIGIN/lib
+DESTDIR = ../dist
+win32: LIBS += -L../dist
+else : LIBS += -L../dist/lib
+
