@@ -9,18 +9,32 @@ String * String::alloc(K::EditUtils::AssetPool * pool, uint len) {
     out->string_length = len;
     return out;
 }
-String::Symbol sym(QChar c) {
+String::Symbol S::sym(QChar c) {
     String::Symbol s = c.unicode();
-    if (c.isDigit()) {
+    if (c >= '0' && c <= '9') {
         s |= (SYM_DIGIT<<16);
     } else if (c.isSpace()) {
         s |= (SYM_SPACE<<16);
     } else if (c.isLetter()) {
         s |= (SYM_LETTER<<16);
     } else switch (s) {
+    case '~':
+    case '@':
+    case '%':
+    case '^':
+    case '&':
+    case '*':
+    case '-':
+    case '+':
+    case '<':
+    case '>':
+    case '/':
+    case '|':
+    case '!': s |= (SYM_PUNCT<<16);     break;
+    case ':': s |= (SYM_SEMICOLON<<16); break;
     case '.': s |= (SYM_DOT<<16);       break;
     case ',': s |= (SYM_COMMA<<16);     break;
-    case '=': s |= (SYM_EQUAL_SIGN<<16);  break;
+    case '=': s |= (SYM_EQUAL_SIGN<<16);break;
     case '\'':s |= (SYM_STR1<<16);      break;
     case '\"':s |= (SYM_STR2<<16);      break;
     case '$':
@@ -29,6 +43,7 @@ String::Symbol sym(QChar c) {
     case ')': s |= (SYM_RBRACKET<<16);  break;
     case '[': s |= (SYM_LINDEX<<16);    break;
     case ']': s |= (SYM_RINDEX<<16);    break;
+    case '#': s |= (SYM_COMMENT<<16);   break;
     default:  s = 0;
     }
     return s;

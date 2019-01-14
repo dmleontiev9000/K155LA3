@@ -1,25 +1,6 @@
-#include <QtTest>
-#include <QDateTime>
-#include "../editutils/assetpool.h"
-#include "str.h"
-using namespace K::EditUtils;
+#include "test_string.h"
+
 using namespace K::Lang;
-class StringTest : public QObject
-{
-    Q_OBJECT
-public:
-    StringTest();
-    virtual ~StringTest();
-private Q_SLOTS:
-    void allocatePool();
-    void simpleAllocation();
-    void complexAllocation();
-    void destroyPool();
-private:
-    AssetPool * pool = nullptr;
-};
-
-
 StringTest::StringTest()
 {
 }
@@ -35,6 +16,37 @@ void StringTest::destroyPool()
 {
     delete pool;
     pool = nullptr;
+}
+void StringTest::Test(const char * s1, uint cat) {
+    auto s = (const unsigned char *) s1;
+    for(int i = 0; s[i]; ++i) {
+        uint ss = S::sym(QChar::fromLatin1(s[i]));
+        if (S::symtype(ss) != cat) {
+            char cc = isprint(s[i]) ? s[i] : '?';
+            qWarning("symbol %02x(%c) has wrong category", int(s[i]), cc);
+        }
+        QVERIFY(S::symtype(ss) == cat);
+        QVERIFY(S::sym(ss) == s[i]);
+    }
+}
+void StringTest::symtypeTest()
+{
+    Test("azAZ_$", S::SYM_LETTER);
+    Test("0123456789", S::SYM_DIGIT);
+    Test(".", S::SYM_DOT);
+    Test(",", S::SYM_COMMA);
+    Test("(", S::SYM_LBRACKET);
+    Test(")", S::SYM_RBRACKET);
+    Test("[", S::SYM_LINDEX);
+    Test("]", S::SYM_RINDEX);
+    Test("~@!%^&*-+/|<>", S::SYM_PUNCT);
+    Test(" \t\r\n", S::SYM_SPACE);
+    Test("=", S::SYM_EQUAL_SIGN);
+    Test(":", S::SYM_SEMICOLON);
+    Test("\"", S::SYM_STR2);
+    Test("\'", S::SYM_STR1);
+    Test("#", S::SYM_COMMENT);
+
 }
 void StringTest::simpleAllocation()
 {

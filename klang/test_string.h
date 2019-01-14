@@ -13,9 +13,11 @@ public:
     virtual ~StringTest();
 private Q_SLOTS:
     void allocatePool();
+    void symtypeTest();
     void simpleAllocation();
     void complexAllocation();
     void destroyPool();
 private:
     AssetPool * pool = nullptr;
+    void Test(const char *s, uint cat);
 };
