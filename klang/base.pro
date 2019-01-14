@@ -13,9 +13,9 @@ LIBS        += -ldocuments
 INCLUDEPATH += $$PWD/../boost
 DEPENDPATH  += $$PWD/../boost
 
-INCLUDEPATH += $$PWD/../edit_utils
-DEPENDPATH  += $$PWD/../edit_utils
-LIBS        += -ledit_utils
+INCLUDEPATH += $$PWD/../editutils
+DEPENDPATH  += $$PWD/../editutils
+LIBS        += -leditutils
 
 SOURCES += \
     str.cpp \

@@ -11,7 +11,7 @@ namespace EditUtils {
 struct EDITUTILSSHARED_EXPORT Element
 {
     std::uint32_t magic;
-    std::uint32_t length;
+    std::uint32_t memsize;
     Element     **handle;
     void dispose();
 };

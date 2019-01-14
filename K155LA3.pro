@@ -1,9 +1,6 @@
 CONFIG  += ordered
 TEMPLATE = subdirs
-SUBDIRS += core coregui \
-    documents edit_utils \
-    gui launcher \
-    ide settings help \
-    klang \
-    boost \
-    makegame
+SUBDIRS += core coregui launcher boost \
+    documents editutils \
+    gui ide settings help \
+    klang

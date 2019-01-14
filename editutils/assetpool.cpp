@@ -58,7 +58,7 @@ Element * AssetPool::alloc(unsigned length)
         memset(address, 0, length);
         q = (Element*)address;
         q->magic  = LIVEMAGIC;
-        q->length = length;
+        q->memsize = length;
         //memory barrier before we make this slice visible to GC...
         MEMORY_BARRIER;
         pool_tail->gc_next = sh;
@@ -70,7 +70,7 @@ Element * AssetPool::alloc(unsigned length)
         memset(address, 0, length);
         q = (Element*)address;
         q->magic  = LIVEMAGIC;
-        q->length = length;
+        q->memsize = length;
         //memory barrier before we make this allocation visible to GC...
         MEMORY_BARRIER;
         sh->alloc += length;
@@ -85,7 +85,7 @@ void AssetPool::run() {
     {
         //do not touch current slice! it is used by allocator
         if (!sh->gc_next) {
-            QThread::sleep(400);
+            QThread::sleep(1);
             sh  = pool_head;
             ph  = nullptr;
             continue;
@@ -110,17 +110,17 @@ void AssetPool::run() {
         {
             Element * __restrict e = (Element*)(((char*)sh)+p);
             if (e->magic == LIVEMAGIC) {
-                usage += e->length;
-                p     += e->length;
+                usage += e->memsize;
+                p     += e->memsize;
             } else if (p == last_hole) {
                 Q_ASSERT(e->magic == DEADMAGIC);
-                pe->length += e->length;
-                p          += e->length;
+                pe->memsize += e->memsize;
+                p          += e->memsize;
                 last_hole   = p;
             } else {
                 Q_ASSERT(e->magic == DEADMAGIC);
                 pe          = e;
-                p          += e->length;
+                p          += e->memsize;
                 last_hole   = p;
 
                 //record all holes
@@ -162,7 +162,7 @@ void AssetPool::run() {
             //will fit into 16 holes limit in most cases
             if (2u*alloc > SLICE && nholes) {
                 char * dst  = (char*)holes[0];
-                char * src  = dst + holes[0]->length;
+                char * src  = dst + holes[0]->memsize;
 
                 for(int i = 1; i < nholes; ++i) {
                     char * end = (char*)holes[i];
@@ -171,7 +171,7 @@ void AssetPool::run() {
                         memmove(dst, src, end-src);
                     }
                     dst += end-src;
-                    src  = (char*)holes[i] + holes[i]->length;
+                    src  = (char*)holes[i] + holes[i]->memsize;
                 }
                 char * end = (char*)sh + sh->alloc;
                 if (src < end) {
@@ -222,7 +222,7 @@ void AssetPool::relocate(char *dst, char *src, char *end)
         if (e->magic == LIVEMAGIC) {
             if (e->handle) *e->handle = (Element*)(p - delta);
         }
-        p += e->length;
+        p += e->memsize;
     }
     Q_ASSERT(p==end);
 }
