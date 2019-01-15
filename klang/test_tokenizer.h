@@ -16,6 +16,7 @@ private Q_SLOTS:
     void integerTest2();
     void floatTest();
     void expressionTest();
+    void keywordTest();
     void destroyPool();
 private:
     AssetPool * pool = nullptr;

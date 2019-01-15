@@ -37,7 +37,12 @@ uint Tokenizer::Context::detail() const
 {
     return ((ContextP*)d)->detail;
 }
-void Tokenizer::Context::set_error(const QString &e) {
+const QString& Tokenizer::Context::error() const
+{
+    return ((ContextP*)d)->error;
+
+}
+void Tokenizer::Context::setError(const QString &e) {
     auto p = (ContextP*)d;
     p->error = e;
 }
@@ -114,8 +119,6 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         uint L = i - ctx->start;
         for(int i = 0; keywords[i].len > 0; ++i) {
             if (keywords[i].first != s)
-                continue;
-            if (keywords[i].len != L)
                 continue;
             if (!xstrcmp(str->symbols+ctx->start, L, keywords[i].text, ctx->detail))
                 continue;
@@ -524,6 +527,8 @@ static bool xstrcmp(const String::Symbol *s, uint n, const char * text, uint& de
     uint i = 1;
     for (;i < n;++i)
     {
+        if (text[i] == '?')
+            break;
         if (sym(s[i])!=uint(text[i]))
             return false;
     }
@@ -541,9 +546,9 @@ static bool xstrcmp(const String::Symbol *s, uint n, const char * text, uint& de
     } else
         return text[i] == 0;
 }
-void Tokenizer::error(const char * msg, uint , uint ) {
-    qDebug("ERROR: %s", msg);
+void Tokenizer::error(const char * , uint , uint ) {
+//    qDebug("ERROR: %s", msg);
 }
-void Tokenizer::warning(const char * msg, uint , uint ) {
+void Tokenizer::warning(const char * , uint , uint ) {
 //    qDebug("WARINIG: %s", msg);
 }

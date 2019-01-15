@@ -27,10 +27,12 @@ enum {
     //keywords
     KEYWORD_VOID,
     KEYWORD_INT,
+    KEYWORD_UINT
 };
 static Tokenizer::KW keywords[] = {
     _KW("void",     KEYWORD_VOID),
     _KW("int?",     KEYWORD_INT),
+    _KW("uint?",    KEYWORD_UINT),
     {0,0,0,0}
 };
 const char * tokname(uint t) {
@@ -53,7 +55,10 @@ const char * tokname(uint t) {
     case T::TOKEN_STR2: return "string(\"\")";
     case T::TOKEN_ASSIGN: return "assingment";
     case T::TOKEN_OPERATOR: return "operator";
-    default: return "fail";
+    case KEYWORD_INT: return ":int";
+    case KEYWORD_UINT: return ":uint";
+    case KEYWORD_VOID: return ":void";
+    default: return "???";
     }
 }
 void TokenizerTest::test(const char *text,
@@ -75,7 +80,7 @@ void TokenizerTest::test(const char *text,
         QVERIFY(ctx.start() < s->string_length);
         QVERIFY(ctx.end() <= s->string_length);
         QVERIFY(ctx.start() < ctx.end());
-        //qDebug("%s", text+ctx.start());
+        qDebug("%s", text+ctx.start());
         auto len = ctx.end() - ctx.start();
         char tmp[len+1];
         for(uint n = 0; n < len; ++n)
@@ -205,7 +210,8 @@ void TokenizerTest::floatTest() {
         test(tmp, 1, toks1, tids, vars);
     }
 }
-void TokenizerTest::expressionTest() {
+void TokenizerTest::expressionTest()
+{
     const char * toks1[]={
         "aa$_","+","(","-0x440",
         "*","-5.432f","+",
@@ -233,6 +239,18 @@ void TokenizerTest::expressionTest() {
          "12"")"">>="
          "ff",
          sizeof(toks1)/sizeof(toks1[0]), toks1, tids1, vars);
+}
+void TokenizerTest::keywordTest()
+{
+    const char * toks1[]={
+        "uint32","int16","void"
+    };
+    const uint tids1[] = {
+        KEYWORD_UINT, KEYWORD_INT, KEYWORD_VOID
+    };
+    Q_STATIC_ASSERT((sizeof(toks1)/sizeof(toks1[0])) ==
+             (sizeof(tids1)/sizeof(tids1[0])));
+    test("uint32 int16 void", sizeof(toks1)/sizeof(toks1[0]), toks1, tids1, nullptr);
 }
 
 QTEST_APPLESS_MAIN(TokenizerTest)

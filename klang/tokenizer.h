@@ -44,8 +44,9 @@ public:
         uint detail() const;
         uint start() const;
         uint end() const;
+        const QString& error() const;
         void next();
-        void set_error(const QString& e);
+        void setError(const QString& e);
         const QVariant& data() const;
         QString getTokenAsQString(const String * s) const;
     private:
