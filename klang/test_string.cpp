@@ -65,10 +65,12 @@ void StringTest::simpleAllocation()
 
     QThread::sleep(1);
 
+    pool->lock();
     s1->dispose();
     s2->dispose();
     s3->dispose();
     s4->dispose();
+    pool->unlock();
 
     QThread::sleep(2);
 }
