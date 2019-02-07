@@ -1,7 +1,7 @@
 #pragma once
 
 #include "klang_global.h"
-#include <assetpool.h>
+#include "assetpool.h"
 
 namespace K {
 namespace Lang {
@@ -36,7 +36,7 @@ Q_STATIC_ASSERT(MAX_SYM < 32);
  * and it must reside in the node. once context is locked, you can make temporary
  * copies of this pointer
  */
-class String : public K::EditUtils::Element {
+class K_LANG_EXPORT String : public K::EditUtils::Element {
 public:
     typedef quint32 Symbol;
     static String * alloc(K::EditUtils::AssetPool * pool, uint len);
