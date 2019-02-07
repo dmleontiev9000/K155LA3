@@ -63,54 +63,80 @@ const QVariant& Tokenizer::Context::data() const
 {
     return ((ContextP*)d)->variant;
 }
-QString Tokenizer::Context::getTokenAsQString(const String * s) const {
-    auto p = (ContextP*)d;
-    Q_ASSERT(p->end >= p->start);
-    Q_ASSERT(p->end < s->string_length);
-    QString ret;
-    ret.reserve(p->end - p->start);
-    for(auto i = p->start; i < p->end; ++i) {
-        ret.append(QChar(sym(s->symbols[i])));
-    }
-    return ret;
-}
-static bool xstrcmp(const String::Symbol * s, uint n, const char * text, uint &detail);
+static bool xstrcmp(const String *s, uint at, uint n, const char * text, uint& detail);
 
-Tokenizer::Tokenizer(const KW * kws)
+Tokenizer::Tokenizer(const QVector<KW> &kws)
     : keywords(kws)
 {}
 Tokenizer::~Tokenizer()
 {}
+uint Tokenizer::firstToken(const String *str)
+{
+    uint i     = 0;
+    for(; i < str->length(); ++i) {
+        if (symtype(str->at(i)) != SYM_SPACE)
+            break;
+    }
+    if (i == str->length())
+        return TOKEN_INVALID;
+
+    auto s    = sym(str->at(i));
+    auto st   = symtype(str->at(i));
+    if (st == SYM_COMMENT)
+        return TOKEN_COMMENT;
+
+    if (st != SYM_LETTER)
+        return TOKEN_INVALID;
+
+    uint start = i;
+    for(++i; i < str->length(); ++i) {
+        uint s2 = symtype(str->at(i));
+        if (s2 != SYM_LETTER && s2 != SYM_DIGIT)
+            break;
+    }
+    uint L = i - start, detail;
+    for(int i = 0; keywords[i].len > 0; ++i) {
+        if (keywords[i].first != s)
+            continue;
+        if (xstrcmp(str, start, L, keywords[i].text, detail))
+            return keywords[i].result;
+    }
+    return TOKEN_INVALID;
+}
 bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * __restrict__ context)
 {
     static const char digits[]={"0123456789abcdef"};
     ContextP * ctx = (ContextP*)context->d;
-    if (ctx->start >= str->string_length)
+    if (ctx->start >= str->length())
         return false;
 
     uint i    = ctx->start;
-    auto s    = sym(str->symbols[i]);
-    auto st   = symtype(str->symbols[i]);
+    auto s    = sym(str->at(i));
+    auto st   = symtype(str->at(i));
     bool minus= false;
 
     ctx->detail    = 0;
 
     if (st == SYM_SPACE) {
-        for(++i; i < str->string_length; ++i) {
-            if (symtype(str->symbols[i]) != st)
+        for(++i; i < str->length(); ++i) {
+            if (symtype(str->at(i)) != st)
                 break;
         }
         ctx->start = ctx->end = i;
-        if (ctx->start >= str->string_length)
+        if (ctx->start >= str->length())
             return false;
-        s    = sym(str->symbols[i]);
-        st   = symtype(str->symbols[i]);
+        s    = sym(str->at(i));
+        st   = symtype(str->at(i));
     }
 
     switch(st) {
+    case SYM_COMMENT:
+        ctx->token_out = TOKEN_COMMENT;
+        ++i;
+        break;
     case SYM_LETTER:{
-        for(++i; i < str->string_length; ++i) {
-            int s2 = symtype(str->symbols[i]);
+        for(++i; i < str->length(); ++i) {
+            uint s2 = symtype(str->at(i));
             if (s2 != SYM_LETTER && s2 != SYM_DIGIT)
                 break;
         }
@@ -120,7 +146,7 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         for(int i = 0; keywords[i].len > 0; ++i) {
             if (keywords[i].first != s)
                 continue;
-            if (!xstrcmp(str->symbols+ctx->start, L, keywords[i].text, ctx->detail))
+            if (!xstrcmp(str, ctx->start, L, keywords[i].text, ctx->detail))
                 continue;
 
             ctx->token_out = keywords[i].result;
@@ -141,17 +167,17 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                 ctx->token_out == TOKEN_INVALID||
                 ctx->token_out == TOKEN_OPERATOR)
             {
-                if (i+1<str->string_length && symtype(str->symbols[i+1])==SYM_DIGIT)
+                if (i+1<str->length() && symtype(str->at(i+1))==SYM_DIGIT)
                 {
                     minus = true;
                     ++i;
-                    s    = sym(str->symbols[i]);
-                    st   = symtype(str->symbols[i]);
+                    s    = sym(str->at(i));
+                    st   = symtype(str->at(i));
                     goto __digit;
                 }
             }
-            else if (i+1 < str->string_length) {
-                auto c = sym(str->symbols[i+1]);
+            else if (i+1 < str->length()) {
+                auto c = sym(str->at(i+1));
                 if (c=='>') {
                     ctx->token_out = TOKEN_OPERATOR;
                     ctx->detail = tstr('-','>');
@@ -168,12 +194,12 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         }
 
         int det=s;
-        if (++i < str->string_length) {
-            auto c = sym(str->symbols[i]);
+        if (++i < str->length()) {
+            auto c = sym(str->at(i));
             if (c == s) {
                 det = (det<<8)|int(c);
-                if (++i < str->string_length)
-                    c = sym(str->symbols[i]);
+                if (++i < str->length())
+                    c = sym(str->at(i));
             }
             if (c == '=') {
                 det = (det<<8)|int(c);
@@ -186,19 +212,19 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
     case SYM_DIGIT:__digit:{
         unsigned mul = 10;
 
-        if (s == '0' && (str->string_length-i > 1)) {
+        if (s == '0' && (str->length()-i > 1)) {
             //'0x' , '0b', '0o'
-            auto c = sym(str->symbols[++i]) | 0x20u;
+            auto c = sym(str->at(i+1)) | 0x20u;
             if (c == 'x') {
-                if (++i == str->string_length)
+                if (++i == str->length())
                     break;
                 mul = 16;
             } else if (c == 'o') {
-                if (++i == str->string_length)
+                if (++i == str->length())
                     break;
                 mul = 8;
             } else if (c == 'b') {
-                if (++i == str->string_length)
+                if (++i == str->length())
                     break;
                 mul = 2;
             }
@@ -210,8 +236,8 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         unsigned c;
 
         quint64  sum   = 0;
-        for(; i < str->string_length; ++i) {
-            c = sym(str->symbols[i])|0x20;
+        for(; i < str->length(); ++i) {
+            c = sym(str->at(i))|0x20;
             auto indexofc = strchr(digits, int(c));
             if (!indexofc) break;
             null = false;
@@ -235,25 +261,25 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
 
         if (!err) {
             //floating point number
-            if (i < str->string_length && c == '.' && mul == 10) {
+            if (i < str->length() && c == '.' && mul == 10) {
                 //we can't use strtod or strtof because they use locale and thus suck
                 auto dot   = i;
                 auto start = ctx->start + (minus?1:0);
 
                 //.123
-                for(++i; i < str->string_length; ++i) {
-                    c = sym(str->symbols[i]);
+                for(++i; i < str->length(); ++i) {
+                    c = sym(str->at(i));
                     if (c < '0' || c > '9') break;
                 }
 
                 double result = 0.0;
                 for(auto j = i-1; j > dot; --j) {
-                    result = 0.1*result + 0.1*(char(str->symbols[j])-'0');
+                    result = 0.1*result + 0.1*(char(str->at(j))-'0');
                 }
                 double scale = 1.0;
                 for(auto j = dot-1;; --j)
                 {
-                    result = result + scale*(char(str->symbols[j])-'0');
+                    result = result + scale*(char(str->at(j))-'0');
                     scale *= 10.0;
                     if (j == start) break;
                 }
@@ -261,27 +287,27 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
 
                 int sexp = 0;
                 bool oor = false;
-                if (i < str->string_length) {
-                    c = sym(str->symbols[i]);
+                if (i < str->length()) {
+                    c = sym(str->at(i));
                     //e+123
                     if (tolower(c) == 'e') do {
                         err = true;
 
-                        if (++i >= str->string_length)
+                        if (++i >= str->length())
                             break;
-                        auto cs = sym(str->symbols[i]);
+                        auto cs = sym(str->at(i));
                         if ((cs == '+') || (cs == '-'))
-                            if (++i >= str->string_length)
+                            if (++i >= str->length())
                                 break;
-                        c = sym(str->symbols[i]);
+                        c = sym(str->at(i));
                         if ((c < '0') || (c > '9'))
                             break;
 
                         uint exp = c - '0';
                         err = false;
 
-                        for(++i; i < str->string_length; ++i) {
-                            c = sym(str->symbols[i]);
+                        for(++i; i < str->length(); ++i) {
+                            c = sym(str->at(i));
                             if ((c < '0') || (c > '9'))
                                 break;
                             exp = exp*10+(c-'0');
@@ -292,8 +318,8 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                     } while(0);
                 }
 
-                if (i < str->string_length &&
-                    sym(tolower(sym(str->symbols[i])) == 'f'))
+                if (i < str->length() &&
+                    sym(tolower(sym(str->at(i))) == 'f'))
                 {
                     ++i;
                     oor |= (sexp < -FLT_MAX_10_EXP) | (sexp > FLT_MAX_10_EXP);
@@ -322,12 +348,12 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                 //check for l and u suffixes
                 bool unsigned_int = false;
                 bool long_int     = false;
-                if (i < str->string_length) {
-                    c = tolower(sym(str->symbols[i]));
+                if (i < str->length()) {
+                    c = tolower(sym(str->at(i)));
                     if (c == 'l') { ++i; long_int = true; }
                 }
-                if (i < str->string_length) {
-                    c = tolower(sym(str->symbols[i]));
+                if (i < str->length()) {
+                    c = tolower(sym(str->at(i)));
                     if (c  == 'u') { ++i; unsigned_int = true; }
                 }
                 if (iow) {
@@ -364,8 +390,8 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
             }
         }
 
-        while (i < str->string_length) {
-            auto st = symtype(str->symbols[i]);
+        while (i < str->length()) {
+            auto st = symtype(str->at(i));
             if (st != SYM_LETTER && st != SYM_DIGIT && st != SYM_DOT)
                 break;
 
@@ -381,8 +407,8 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         ctx->token_out = TOKEN_COMMA; ++i;
         break;}
     case SYM_DOT:{
-        for(++i; i < str->string_length; ++i) {
-            if (sym(str->symbols[i]) != '.')
+        for(++i; i < str->length(); ++i) {
+            if (sym(str->at(i)) != '.')
                 break;
         }
         switch (i - ctx->start) {
@@ -400,8 +426,8 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         }
         break;}
     case SYM_EQUAL_SIGN:{
-        for(++i; i < str->string_length; ++i) {
-            if (sym(str->symbols[i]) != '=')
+        for(++i; i < str->length(); ++i) {
+            if (sym(str->at(i)) != '=')
                 break;
         }
         switch (i - ctx->start) {
@@ -418,8 +444,8 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
         }
         break;}
     case SYM_SEMICOLON:{
-        for(++i; i < str->string_length; ++i) {
-            if (sym(str->symbols[i]) != ':')
+        for(++i; i < str->length(); ++i) {
+            if (sym(str->at(i)) != ':')
                 break;
         }
         switch (i - ctx->start) {
@@ -449,8 +475,8 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
     case SYM_STR1: case SYM_STR2: {
         bool slash = false, fin = false;
         QString sout;
-        for(++i; i < str->string_length; ++i) {
-            auto c = sym(str->symbols[i]);
+        for(++i; i < str->length(); ++i) {
+            auto c = sym(str->at(i));
             if (slash) {
                 switch(c) {
                 case 'n': sout.append(QChar('\n'));break;
@@ -460,9 +486,9 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                 case 'b': sout.append(QChar('\b'));break;
                 case 'x': {
                     //2 hex sumbols: \x3F
-                    if ((i+2) < str->string_length) {
-                        int c0 = sym(str->symbols[i+1]) | 0x20;
-                        int c1 = sym(str->symbols[i+2]) | 0x20;
+                    if ((i+2) < str->length()) {
+                        int c0 = sym(str->at(i+1)) | 0x20;
+                        int c1 = sym(str->at(i+2)) | 0x20;
                         auto pc0 = strchr(digits, c0);
                         auto pc1 = strchr(digits, c1);
                         if (!pc0 || !pc1) {
@@ -475,11 +501,11 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
                     break;}
                 case 'u':{
                     //4 hex symbols: \u2501
-                    if ((i+4) < str->string_length) {
-                        int c0 = sym(str->symbols[i+1]) | 0x20;
-                        int c1 = sym(str->symbols[i+2]) | 0x20;
-                        int c2 = sym(str->symbols[i+2]) | 0x20;
-                        int c3 = sym(str->symbols[i+3]) | 0x20;
+                    if ((i+4) < str->length()) {
+                        int c0 = sym(str->at(i+1)) | 0x20;
+                        int c1 = sym(str->at(i+2)) | 0x20;
+                        int c2 = sym(str->at(i+3)) | 0x20;
+                        int c3 = sym(str->at(i+4)) | 0x20;
                         auto pc0 = strchr(digits, c0);
                         auto pc1 = strchr(digits, c1);
                         auto pc2 = strchr(digits, c2);
@@ -523,25 +549,25 @@ bool Tokenizer::tokenize(const String * __restrict__ str, Tokenizer::Context * _
     ctx->end = i;
     return true;
 }
-static bool xstrcmp(const String::Symbol *s, uint n, const char * text, uint& detail) {
+static bool xstrcmp(const String *s, uint at, uint n, const char * text, uint& detail) {
     uint i = 1;
     for (;i < n;++i)
     {
         if (text[i] == '?')
             break;
-        if (sym(s[i])!=uint(text[i]))
+        if (sym(s->at(i+at))!=uint(text[i]))
             return false;
     }
     if (text[i] == '?') {
         if (i == n) return false;
-        if (symtype(s[i])!=SYM_DIGIT) return false;
+        if (symtype(s->at(i+at))!=SYM_DIGIT) return false;
 
         do {
-            detail = detail*10+(sym(s[i])-'0');
+            detail = detail*10+(sym(s->at(i))-'0');
             ++i;
             if (detail > 1024*1024)
                 return false;
-        } while(i < n && symtype(s[i])==SYM_DIGIT);
+        } while(i < n && symtype(s->at(i+at))==SYM_DIGIT);
         return i==n;
     } else
         return text[i] == 0;

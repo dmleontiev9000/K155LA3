@@ -3,6 +3,7 @@
 #include "klang_global.h"
 #include "str.h"
 #include <QVariant>
+#include <QVector>
 
 namespace K {
 namespace Lang {
@@ -10,6 +11,7 @@ namespace T {
 enum Tokens {
     TOKEN_INVALID = 0,
     TOKEN_ERROR,
+    TOKEN_COMMENT, //#
     TOKEN_LBR,     //(
     TOKEN_RBR,     //)
     TOKEN_LIDX,    //[
@@ -40,15 +42,17 @@ public:
     public:
         Context();
         ~Context();
+
         uint token() const;
         uint detail() const;
         uint start() const;
         uint end() const;
-        const QString& error() const;
-        void next();
-        void setError(const QString& e);
         const QVariant& data() const;
-        QString getTokenAsQString(const String * s) const;
+
+        void setError(const QString& e);
+        const QString& error() const;
+
+        void next();
     private:
         Q_DISABLE_COPY(Context)
         friend class K::Lang::Tokenizer;
@@ -58,7 +62,7 @@ public:
     struct KW { uint len; uint first; const char * text; uint result; };
     #define _KW(xxxxx, yyyyy) {strlen(xxxxx), xxxxx[0], xxxxx, yyyyy}
 
-    Tokenizer(const KW * kws);
+    Tokenizer(const QVector<KW>& kws);
     virtual ~Tokenizer();
 
     inline static constexpr uint tstr(char c1, char c2 = 0, char c3 = 0) {
@@ -68,11 +72,13 @@ public:
         return q;
     }
     bool tokenize(const String * __restrict__ str, Tokenizer::Context * __restrict__ ctx);
+    uint firstToken(const String * __restrict__ str);
+
     virtual void error(const char * msg, uint start, uint end);
     virtual void warning(const char * msg, uint start, uint end);
 private:
     Q_DISABLE_COPY(Tokenizer)
-    const KW * keywords;
+    QVector<KW> keywords;
 };
 
 } //namespace Lang
