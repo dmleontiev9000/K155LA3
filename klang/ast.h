@@ -13,21 +13,22 @@ class K_LANG_EXPORT ASTGenerator : public Tokenizer {
 public:
     class K_LANG_EXPORT Context : public Tokenizer::Context {
     public:
-        Context(bool parseargs, int vertex);
+        Context(int vertex);
         ~Context();
     private:
         friend class K::Lang::ASTGenerator;
         void * d;
     };
 
-    typedef K::function<RC (const InterruptTest&)> Callback;
+    virtual EvalOrder sort(Node * node) = 0;
+    
+    typedef K::function<RC ()> Callback;
 
     ASTGenerator(const KW * kws);
     virtual ~ASTGenerator();
 protected:
     RC iteration(Context * context,
-                 const String* s,
-                 const InterruptTest& itest);
+                 const String* s);
     int  VERTEX(Callback cb = Callback());
     void EDGE(int v, int to, int token, Callback chk = Callback());
     void EDGES(int v, int to, std::initializer_list<int> toks, Callback chk = Callback());
@@ -37,6 +38,7 @@ protected:
     void RET(int v, Callback chk = Callback());
     int  TOK(int v, int token, Callback verify = Callback(), Callback chk = Callback());
     int  TOKS(int v, std::initializer_list<int> toks, Callback verify = Callback(), Callback chk = Callback());
+    void END(int v, Callback c);
 private:
     Q_DISABLE_COPY(ASTGenerator)
     ASTGeneratorPrivate * d;

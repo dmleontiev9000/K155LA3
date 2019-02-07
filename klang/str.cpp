@@ -109,3 +109,13 @@ void String::colorify(uint from, uint to, uint attr) {
         symbols[i] |= attr<<21;
     }
 }
+void String::set(uint n, Symbol s)
+{
+    Q_ASSERT(n < string_length);
+    symbols[n] = s;
+}
+void String::set(uint n, QChar c)
+{
+    Q_ASSERT(n < string_length);
+    symbols[n] = S::sym(c);
+}

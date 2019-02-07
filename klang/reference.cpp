@@ -47,7 +47,6 @@ Reference1 * Reference1::create(Node1 *owner, Node1 *target) {
     Q_ASSERT(target != nullptr);
     return new(owner->mContext->refpool->malloc()) Reference1(owner,target);
 }
-
 Reference1 * Reference1::next_target() const {
     return dst_next == this ? nullptr : dst_next;
 }
@@ -76,6 +75,17 @@ void   Reference::destroy() {
     auto s = self->src;
     self->~Reference1();
     s->mContext->refpool->free(self);
+}
+void   Reference::destroyList() {
+    auto self = static_cast<Reference1*>(this);
+    do {
+        if (self->dst_next)
+            self->dst_next->dst_prev = self->dst_prev;
+        *self->dst_prev = self->dst_next;
+        auto next = self->src_next;
+        self->src->mContext->refpool->free(self);
+        self = next;
+    } while(self);
 }
 void   Reference::invalidate() {
     Reference1 * __restrict__ self = static_cast<Reference1*>(this);

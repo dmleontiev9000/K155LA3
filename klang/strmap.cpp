@@ -73,11 +73,12 @@ void StringMap::addNode(Node1 *node, uint from, uint to) {
 }
 void StringMap::removeNode(Node1 *node) {
     if (node->mSMEntry) {
+        Entry * e = (Entry*)node->mSMEntry;
         if (node->mNLNext) node->mNLNext->mNLPrev = node->mNLPrev;
         *node->mNLPrev = node->mNLNext;
         node->mNLPrev  = &node->mNLNext;
-        if (node->mSMEntry->node == nullptr)
-            node->mSMEntry->age = timer.elapsed();
+        if (e->node == nullptr)
+            e->age = timer.elapsed();
         node->mNLNext  = nullptr;
         node->mSMEntry = nullptr;
     }

@@ -4,57 +4,63 @@
 #include "context.h"
 #include "node_p.h"
 #include "reference_p.h"
+#include "ast.h"
+#include "strmap.h"
 #include <assetpool.h>
 #include <boost/pool/object_pool.hpp>
 #include <QObject>
 #include <QVector>
 #include <QMultiHash>
 #include <QVariant>
+#include <QEventLoop>
 
+#define NUM_QUEUES static_cast<int>(EvalOrder::MAX_EVAL_ORDER)
 namespace K {
 namespace Lang {
 
 class ContextPrivate {
 public:
-    ContextPrivate();
+    ContextPrivate(ASTGenerator * gen);
     ~ContextPrivate();
 
-    bool                             running = false;
+    bool                             mustbedeleted;
+
     boost::object_pool<Node1>      * nodepool;
     boost::object_pool<Reference1> * refpool;
     K::EditUtils::AssetPool        * assetpool;
-    Node1                          * workset_invalidate = nullptr;
+    ASTGenerator                   * generator;
+    StringMap                      * strmap;
+
+    //deletion queue
+    Node1                          * workset_finalize;
+    //invalidation queue
+    Node1                          * workset_invalidate;
+    //recheck queue
+    Node1                          * workset_recheck;
+    //processing queues
     //multiple queues are used to minimize number of analyzed elements
-    //which are blocked by dependency chain
-    enum {
-        QUEUE_NAMESPACE_OR_COMMENT,
-        QUEUE_ENUM,
-        QUEUE_CONST,
-        QUEUE_CLASS,
-        QUEUE_VARIABLE,
-        QUEUE_FUNCTION,
-        QUEUE_BLOCK,
-        NUM_QUEUES
-    };
+    //which are delayed by their dependencies. if elements needs an
+    //element which is not processed,
     Node1                          * workset_queue[NUM_QUEUES];
-    Node1                          * workset_blocked    = nullptr;
-    Node1                          * workset_blocked2   = nullptr;
-    Node1                          * workset_complete   = nullptr;
-    Node1                          * workset_finalize   = nullptr;
+    Node1                          * workset_waiting[NUM_QUEUES];
+    Node1                          * workset_blocked[NUM_QUEUES];
+    //complete queue
+    Node1                          * workset_complete;
 
     static Node       * node();
     static void         destroy(Node *);
     static Reference *  reference(Node *from, Node *to);
     static void         destroy(Reference *);
     static String    *  string(uint nchars);
+    
+    bool process();
 
-    bool process(const InterruptTest& itest);
-    bool process_invalidate_workset(const InterruptTest& itest);
-    bool process_parse_workset(const InterruptTest& itest);
-    bool process_type_workset(const InterruptTest& itest);
-    bool process_blocked_workset(const InterruptTest& itest);
-    bool process_finalize_workset(const InterruptTest& itest);
-    bool process_totally_blocked(const InterruptTest& itest);
+    bool process_finalize_workset(QEventLoop * loop);
+    bool process_invalidate_workset(QEventLoop * loop);
+    bool process_recheck_workset(QEventLoop * loop);
+    bool process_queue(QEventLoop * loop);
+    bool process_blocked_workset(QEventLoop * loop);
+    bool process_totally_blocked(QEventLoop * loop);
 };
 
 } //namespace Lang

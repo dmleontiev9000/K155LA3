@@ -1,7 +1,7 @@
 #pragma once
 
 #include "node.h"
-
+#include "assetpool.h"
 namespace K {
 namespace Lang {
 
@@ -12,9 +12,10 @@ class Node1 : public Node {
 public:
     Node1(ContextPrivate * ctx);
     ~Node1();
-
+    
     void   destroy();
     void   invalidate();
+
     ContextPrivate * mContext;
 
     bool   comment() const {
@@ -40,8 +41,14 @@ public:
         invalidate();
     }
     uint         mType;
-    String     * mText;
-    uint         mNameStart, mNameEnd;
+
+    void   setName(uint start, uint end);
+    void   unsetName();
+    Node1 *nextSameName() const { return mNLNext; }
+    EditUtils::ElementPtr<String> mText;
+    void      * mSMEntry;
+    Node1     **mNLPrev, *mNLNext;
+
 
     void   attachToWorkset(Node1 ** workset);
     void   detachFromWorkset();

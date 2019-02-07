@@ -5,10 +5,11 @@ using namespace K::Lang;
 Node1::Node1(ContextPrivate * ctx) {
     mContext= ctx;
     mType   = INVALID|FORCE_DISABLED;
-    mText   = nullptr;
-    mNameStart = mNameEnd = 0;
+    mSMEntry = nullptr;
     mWSPrev = &mWSNext;
     mWSNext = nullptr;
+    mNLPrev = &mNLNext;
+    mNLNext = nullptr;
     mParent = nullptr;
     mNext   = this;
     mPrev   = this;
@@ -16,6 +17,25 @@ Node1::Node1(ContextPrivate * ctx) {
     mOut    = nullptr;
     mIn     = nullptr;
     mDeclType = nullptr;
+}
+Node1::~Node1() {
+    if (mIn) mIn->invalidate();
+    if (mOut) mOut->destroyList();
+    Q_ASSERT(mChild == nullptr);
+    Q_ASSERT(mWSPrev == &mWSNext);
+    Q_ASSERT(mWSNext == nullptr);
+    Q_ASSERT(mSMEntry == nullptr);
+    Q_ASSERT(mNLPrev == &mNLNext);
+    Q_ASSERT(mNLNext == nullptr);
+}
+void   Node1::setName(uint start, uint end) {    
+    Q_ASSERT((bool)mText);
+    Q_ASSERT(start < end);
+    mContext->strmap.addNode(this, start, end);
+}
+void   Node1::unsetName() {
+    if (mSMEntry)
+        mContext->strmap.removeNode(this);
 }
 void   Node1::attachToWorkset(Node1 **workset) {
     *mWSPrev = mWSNext;
@@ -55,10 +75,10 @@ Node * Node::create(Context *ctx, const char * text) {
     auto str = String::alloc(ctx->d->assetpool, len);
     if (!str) return nullptr;
     for(uint n = 0; n < len; ++n)
-        str->symbols[n] = S::sym(QChar::fromLatin1(text[n]));
+        str->set(n, QChar::fromLatin1(text[n]));
 
     Node1 * out = new(ctx->d->nodepool->malloc()) Node1(ctx->d);
-    str->bind(&out->mText);
+    out->mText = str;
     return out;
 }
 Node * Node::create(Context *ctx, const QStringRef &text) {
@@ -66,10 +86,10 @@ Node * Node::create(Context *ctx, const QStringRef &text) {
     auto str = String::alloc(ctx->d->assetpool, len);
     if (!str) return nullptr;
     for(uint n = 0; n < len; ++n)
-        str->symbols[n] = text[n].unicode();
+        str->set(n, text[n].unicode());
 
     Node1 * out = new(ctx->d->nodepool->malloc()) Node1(ctx->d);
-    str->bind(&out->mText);
+    out->mText = str;
     return out;
 }
 Node * Node::create(Context *ctx, const QString &text) {
@@ -77,10 +97,10 @@ Node * Node::create(Context *ctx, const QString &text) {
     auto str = String::alloc(ctx->d->assetpool, len);
     if (!str) return nullptr;
     for(uint n = 0; n < len; ++n)
-        str->symbols[n] = text[n].unicode();
+        str->set(n, text[n].unicode());
 
     Node1 * out = new(ctx->d->nodepool->malloc()) Node1(ctx->d);
-    str->bind(&out->mText);
+    out->mText = str;
     return out;
 }
 void   Node::attach(Node * __restrict__ attachment, Node * __restrict__ after) {
@@ -120,7 +140,6 @@ void   Node::detach() {
         Q_ASSERT(self->mNext == self);
     } else {
         Node1 * nc = self->mNext == self ? nullptr : self->mNext;
-
         self->mPrev->mNext = self->mNext;
         self->mNext->mPrev = self->mPrev;
         if (self->mParent->mChild == self)
@@ -132,14 +151,20 @@ void   Node::detach() {
 }
 void   Node::destroy() {
     Node1 * __restrict__ self = static_cast<Node1*>(this);
+    self->mType = INVALID;
+    self->unsetName();
     detach();
     self->attachToWorkset(&self->mContext->workset_finalize);
 }
 void   Node::invalidate() {
     Node1 * __restrict__ self = static_cast<Node1*>(this);
     self->mType = INVALID;
-    self->mNameStart = self->mNameEnd = 0;
+    self->unsetName();
     self->attachToWorkset(&self->mContext->workset_invalidate);
+}
+void   Node::recheck() {
+    Node1 * __restrict__ self = static_cast<Node1*>(this);
+    self->attachToWorkset(&self->mContext->workset_recheck);
 }
 void   Node::comment(bool c) {
     (static_cast<Node1*>(this))->comment(c);
@@ -155,70 +180,6 @@ void   Node::disable() {
 }
 bool   Node::disabled() const {
     return (static_cast<const Node1*>(this))->disabled();
-}
-bool   Node::exactNameMatch(const String *str, uint from, uint to) const {
-    const Node1 * __restrict__ self = static_cast<const Node1*>(this);
-    if (!self->mText)
-        return false;
-    Q_ASSERT(self->mNameStart < self->mNameEnd);
-    Q_ASSERT(self->mNameEnd < self->mText->string_length);
-    Q_ASSERT(from < to);
-    Q_ASSERT(to < str->string_length);
-    if (to - from != self->mNameEnd - self->mNameStart)
-        return false;
-
-    uint i = from;
-    uint j = self->mNameStart;
-
-    for(; i != to; ++i, ++j) {
-        if (S::sym(str->symbols[i]) !=
-            S::sym(self->mText->symbols[j]))
-            return false;
-    }
-    return true;
-}
-bool   Node::guessNameMatch(const String *str, uint from, uint to) const {
-    const Node1 * __restrict__ self = static_cast<const Node1*>(this);
-    if (!self->mText)
-        return false;
-    Q_ASSERT(self->mNameStart < self->mNameEnd);
-    Q_ASSERT(self->mNameEnd < self->mText->string_length);
-    Q_ASSERT(from < to);
-    Q_ASSERT(to < str->string_length);
-
-    if (to - from > self->mNameEnd - self->mNameStart)
-        return false;
-
-    uint i = from;
-    uint j = self->mNameStart;
-    uint ec = 0;
-    while(i != to) {
-        auto s1 = S::symtype2(str->symbols[i]);
-        auto s2 = S::symtype2(self->mText->symbols[j]);
-        if (s1 == s2) {
-            ++i; ++j;
-            continue;
-        }
-        s1 = S::sym(s1);
-        s2 = S::sym(s2);
-        if (s1 == '_') {
-            ++i;
-            continue;
-        }
-        if (s2 == '_') {
-            ++j;
-            continue;
-        }
-        if (s1 > 127 || s2 > 127 ||
-            (s1|0x20) == (s2|0x20)) {
-            ++i; ++j;
-            continue;
-        }
-        if (QChar(s1).toLower() != QChar(s2).toLower())
-            ++ec;
-        ++i; ++j;
-    }
-    return ec +3 < to - from;
 }
 uint   Node::type() const {
     return (static_cast<const Node1*>(this))->mType;
@@ -258,27 +219,6 @@ Node * Node::firstExplicitChild() const {
     do {
         if (((1<<c->mType) & m) == 0)
             return c;
-        c = c->mNext;
-    } while(c!=c0);
-    return nullptr;
-}
-Node * Node::namedImplicitChild(const String *str, uint from, uint to) const {
-    const Node1 * __restrict__ self = static_cast<const Node1*>(this);
-    auto c0 = self->mChild;
-    if (!c0) return nullptr;
-
-    constexpr uint m =
-            (1<<INSTANCE)|
-            (1<<TPARAMETER)|
-            (1<<VPARAMETER)|
-            (1<<ARGUMENT)|
-            (1<<ATTRIBUTE);
-    auto c = c0;
-    do {
-        if (((1<<c->mType) & m) != 0) {
-            if (exactNameMatch(str, from, to))
-                return c;
-        }
         c = c->mNext;
     } while(c!=c0);
     return nullptr;

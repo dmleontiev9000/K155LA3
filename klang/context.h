@@ -1,6 +1,7 @@
 #pragma once
 
 #include "klang_global.h"
+#include "../core/compat.h"
 #include <QObject>
 #include <QVector>
 
@@ -16,7 +17,10 @@ enum class RC {
     INTERRUPTED,
     IGNORE,
 };
-typedef K::function<bool ()> InterruptTest;
+enum class EvalOrder {
+    NAMESPACES,TYPES,MEMBERS,STMTS,
+    MAX_EVAL_ORDER
+};
 
 class Node;
 class Reference;
@@ -28,12 +32,16 @@ class K_LANG_EXPORT Context : public QObject
     Q_OBJECT
 public:
     explicit Context(QObject *parent = nullptr);
-    ~Context();
-
+    void deleteLater();
 private:
     friend class Node;
     ContextPrivate * const d;
     void timerEvent(QTimerEvent *event);
+    /*
+     * do not call descructor directly. Use deleteLater instead
+     * because you may be called by context itself.
+     */
+    ~Context();
 };
 
 } //namespace Lang;

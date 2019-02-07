@@ -11,6 +11,7 @@ class K_LANG_EXPORT Reference {
 public:
     void invalidate();
     void destroy();
+    void destroyList();
     void operator =(Node * node);
     Node * get() const;
     uint start() const;

@@ -20,6 +20,7 @@ public:
         TYPE,
         VOID,//special void 'type'
         BASICTYPE,
+        BLOCK,
         ATTRIBUTE,
         TEMPLATE,
         INSTANCE,//template instance
@@ -37,31 +38,41 @@ public:
         FORCE_COMMENT=0x8000,
         FORCE_DISABLED=0x10000
     };
+
     static Node * create(Context * ctx);
     static Node * create(Context * ctx, const char * text);
     static Node * create(Context * ctx, const QString& text);
     static Node * create(Context * ctx, const QStringRef& text);
-    bool   comment() const;
-    void   comment(bool);
+
     void   attach(Node * __restrict__ attachment, Node * __restrict__ after = nullptr);
-    void   detach();
     void   destroy();
+
+    void   detach();
     void   invalidate();
+    void   recheck();
+
     void   enable();
     void   disable();
     bool   disabled() const;
+    bool   comment() const;
+    void   comment(bool);
 
-    bool   exactNameMatch(const String * str, uint from, uint to) const;
-    bool   guessNameMatch(const String * str, uint from, uint to) const;
 
     uint   type() const;
     bool   isType() const {
         constexpr uint m =
+                (1<<NAMESPACE)|
                 (1<<TYPE)|
+                (1<<VOID)|
                 (1<<BASICTYPE)|
+                (1<<BLOCK)|
+                (1<<ATTRIBUTE)|
                 (1<<TEMPLATE)|
-                (1<<INSTANCE)|
-                (1<<TPARAMETER);
+                (1<<TPARAMETER)|
+                (1<<VPARAMETER)|
+                (1<<FUNCTION)|
+                (1<<ARGUMENT)|
+                (1<<VARIABLE);
         return ((1<<type()) & m) != 0;
     }
     bool   isValid() const;
@@ -71,7 +82,6 @@ public:
     Node * firstChild() const;
     Node * lastChild() const;
     Node * firstExplicitChild() const;
-    Node * namedImplicitChild(const String * str, uint from, uint to) const;
     Node * declType() const;
 protected:
     Node() {}

@@ -13,7 +13,6 @@ class StringMap : QObject {
     Q_OBJECT
 private:
     enum {N_BUCKETS = 128};
-public:
     struct Entry {
         qint64  age;
         Entry * next;
@@ -22,7 +21,7 @@ public:
         quint32 length;
         quint16 text[0];
     };
-
+public:
     StringMap(QObject * parent = nullptr);
     ~StringMap();
 

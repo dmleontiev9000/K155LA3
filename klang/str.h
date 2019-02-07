@@ -45,10 +45,11 @@ public:
     static String * alloc(K::EditUtils::AssetPool * pool, const String * other,
                           quint32 from, quint32 to);
     Symbol at(uint n) const { return symbols[n]; }
-    uint length() const { return string_length; }
-    uint hash(uint from, uint to) const;
-
-    bool equal(const String* str, uint from, uint to);
+    uint   length() const { return string_length; }
+    uint   hash(uint from, uint to) const;
+    void   set(uint n, Symbol s);
+    void   set(uint n, QChar c);
+    bool   equal(const String* str, uint from, uint to);
 
     void colorify(uint from, uint to, uint attr);
     void decolorify();
