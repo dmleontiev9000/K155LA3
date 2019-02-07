@@ -19,6 +19,7 @@ public:
     ElementPtr& operator =(U * pu) {
         if (u) u->dispose();
         u = pu; if (pu) pu->handle = (Element**)&u;
+        return *this;
     }
     ~ElementPtr() { if (u) u->dispose(); }
 
