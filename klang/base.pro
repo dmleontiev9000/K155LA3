@@ -13,6 +13,10 @@ INCLUDEPATH += $$PWD/../documents
 DEPENDPATH  += $$PWD/../documents
 LIBS        += -ldocuments
 
+INCLUDEPATH += $$PWD/../editutils
+DEPENDPATH  += $$PWD/../editutils
+LIBS        += -leditutils
+
 SOURCES += \
     str.cpp \
     ast.cpp \
@@ -26,8 +30,7 @@ SOURCES += \
     file.cpp \
     context_proc.cpp \
     strmap.cpp \
-    context_nm.cpp \
-    assetpool.cpp
+    context_nm.cpp
 
 HEADERS += \
     klang_global.h \
@@ -42,8 +45,7 @@ HEADERS += \
     context_p.h \
     file.h \
     file_p.h \
-    strmap.h \
-    assetpool.h
+    strmap.h
 
 INCLUDEPATH += $$PWD/../core
 DEPENDPATH += $$PWD/../core
