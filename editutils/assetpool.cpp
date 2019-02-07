@@ -219,8 +219,18 @@ void AssetPool::relocate(char *dst, char *src, char *end)
     while(p < end)
     {
         Element * e = (Element*)p;
-        if (e->magic == LIVEMAGIC) {
-            if (e->handle) *e->handle = (Element*)(p - delta);
+        if (e->magic == LIVEMAGIC && e->handle)
+        {
+            Element * new_p = (Element*)(p-delta);
+            Element **new_h = e->handle;
+            /*
+             * if handle is also moved
+             */
+            if ((char*)new_h >= src && (char*)new_h < end)
+                new_h = (Element**)(((char*)new_h) - delta);
+
+            *e->handle = new_p;
+            e->handle  = new_h;
         }
         p += e->memsize;
     }
