@@ -3,30 +3,62 @@
 
 using namespace K::Lang;
 using namespace K::Lang::S;
-
 String * String::alloc(K::EditUtils::AssetPool * pool, const QString& text) {
     uint len = text.length();
     String * out = (String*)pool->alloc(sizeof(String)+sizeof(Symbol)*len);
     out->string_length = len;
-    for(uint i = 0; i < len; ++i)
+    out->misc = 0;
+    for(uint i = 0; i < len; ++i) {
         out->symbols[i] = S::sym(text[i]);
+        out->misc = (out->misc<<11) ^ (out->misc>>21) ^ (out->symbols[i]&0xFFFF);
+    }
+    if (len) out->misc = (out->misc<<HKEY_LEN) | (text[0].unicode() & HKEY_MASK);
     return out;
 }
 String * String::alloc(K::EditUtils::AssetPool *pool, const QLatin1String &text) {
     uint len = text.size();
     String * out = (String*)pool->alloc(sizeof(String)+sizeof(Symbol)*len);
     out->string_length = len;
-    for(uint i = 0; i < len; ++i)
+    out->misc = 0;
+    for(uint i = 0; i < len; ++i) {
         out->symbols[i] = S::sym(text[i]);
+        out->misc = (out->misc<<11) ^ (out->misc>>21) ^ (out->symbols[i]&0xFFFF);
+    }
+    if (len) out->misc = (out->misc<<HKEY_LEN) | (text[0].unicode() & HKEY_MASK);
     return out;
 }
-
 String * String::alloc(K::EditUtils::AssetPool * pool, uint len) {
     String * out = (String*)pool->alloc(sizeof(String)+sizeof(Symbol)*len);
     out->string_length = len;
+    out->misc = 0;
     return out;
 }
+String * String::alloc(K::EditUtils::AssetPool * pool, const String * other,
+                       quint32 from, quint32 to) {
+    Q_ASSERT(from < to);
+    Q_ASSERT(to < other->string_length);
 
+    uint len = to - from;
+    String * __restrict out = (String*)pool->alloc(sizeof(String)+sizeof(Symbol)*len);
+    out->string_length = len;
+    out->misc = 0;
+    for(uint i = 0; i < len; ++i) {
+        out->symbols[i] = S::symtype2(other->symbols[i+from]);
+        out->misc = (out->misc<<11) ^ (out->misc>>21) ^ (out->symbols[i]&0xFFFF);
+    }
+    if (len) out->misc = (out->misc<<HKEY_LEN) | (other->symbols[from] & HKEY_MASK);
+    return out;
+}
+uint String::hash(uint from, uint to) const {
+    Q_ASSERT(from < to);
+    Q_ASSERT(to < string_length);
+    uint q = 0;
+    for(uint i = from+1; i < to; ++i) {
+        q = (q<<11) ^ (q>>21) ^ (symbols[i]&0xFFFF);
+    }
+    q = (q<<HKEY_LEN) | (symbols[from] & HKEY_MASK);
+    return q;
+}
 String::Symbol S::sym(QChar c) {
     String::Symbol s = c.unicode();
     if (c >= '0' && c <= '9') {
