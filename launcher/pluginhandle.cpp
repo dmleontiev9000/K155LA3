@@ -111,25 +111,16 @@ void K::Launcher::PluginHandle::release() {
     if (mUsage)
         return;
 
-    Worker::dropAll(mInstance);
     mIfp->stop();
     emit terminated(mInstance);
     mInstance->disconnect();
-    Worker::finalize(mInstance);
     mIfp->cleanup();
 }
 void K::Launcher::PluginHandle::stop() {
     if (mInstance == nullptr || !mUsage)
         return;
 
-    Worker::dropAll(mInstance);
     mIfp->stop();
     mInstance->disconnect();
 }
-void K::Launcher::PluginHandle::forceRelease() {
-    if (mInstance == nullptr || !mUsage)
-        return;
-    Worker::finalize(mInstance);
-    mIfp->cleanup();
-    mUsage = 0;
-}
+

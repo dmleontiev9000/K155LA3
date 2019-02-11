@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 #endif
     K::Launcher::Core core;
     if (core.loadPlugin("gui")) {
-        core.run();
+        core.runApp();
     } else {
         qCritical("failed to launch gui");
     }

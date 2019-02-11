@@ -17,7 +17,7 @@ public:
     //IfCore
     const QString& appPath() const override;
     const QString& errorString() const override;
-    bool           run() override;
+    bool           runApp();
     void           quit() override;
     PluginList     plugins() override;
     QObject *      loadPlugin(const QString& name) override;

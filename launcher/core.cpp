@@ -292,7 +292,7 @@ const QString& K::Launcher::Core::appPath() const {
     return mAppPath;
 }
 //=================================================
-bool K::Launcher::Core::run() {
+bool K::Launcher::Core::runApp() {
     auto app = QCoreApplication::instance();
     Q_ASSERT(QThread::currentThread() == app->thread());
 
@@ -333,7 +333,7 @@ void K::Launcher::Core::unload() {
     }
     for(auto i = mPlugins.constBegin(); i != mPlugins.constEnd(); ++i) {
         if (i.value()->isLoaded())
-            i.value()->forceRelease();
+            i.value()->release();
     }
 }
 //=================================================

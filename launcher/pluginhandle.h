@@ -28,7 +28,6 @@ public:
     bool use();
     void release();
     void stop();
-    void forceRelease();
     bool isLoaded() const {
         return mUsage > 0;
     }

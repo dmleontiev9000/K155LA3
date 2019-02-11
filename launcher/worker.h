@@ -2,17 +2,20 @@
 
 #include "../core/interfaces.h"
 #include "../core/compat.h"
+#include <QThread>
+#include <QMutex>
+#include <QAtomicPointer>
 
 namespace K {
 namespace Launcher {
 
 class Core;
 
-class Worker : public QObject, public IfWorker
+class Worker : public QThread, public IfWorker
 {
     Q_OBJECT
 public:
-    virtual ~Worker();
+    ~Worker();
 
     QThread * thread() const override;
 
@@ -26,19 +29,50 @@ public:
     void blocking(QObject *owner, const K::function<bool ()>& func) override;
 
     void drop(QObject *tag) override;
-
-    static void dropAll(QObject *tag);
-    static void finalize(QObject * tag);
 protected:
     void run();
     void quit();
 private:
-    friend class ::K::Launcher::Core;
+    enum Type { SYNC, ASYNC, CLEAR };
+    struct Task {
+        Task(QObject * owner,
+             const K::function<bool ()>& f,
+             Type sync)
+            : mOwner(owner)
+            , mFunc(f)
+            , mSync(sync)
+            , mMutex(nullptr)
+        { }
+        Task(QObject * owner,
+             K::function<bool ()>&& f,
+             Type sync)
+            : mOwner(owner)
+            , mFunc(std::move(f))
+            , mSync(sync)
+            , mMutex(nullptr)
+        { }
+        Task(QObject * owner)
+            : mOwner(owner)
+            , mSync(CLEAR)
+        { }
 
+        Task                      * mNext;
+        Task                      * mSame;
+        QObject                   * mOwner;
+        K::function<bool ()>        mFunc;
+        Type                        mSync;
+        QMutex                    * mMutex;
+    };
+    void enqueue(Task * t);
+
+    friend class ::K::Launcher::Core;
+    QAtomicPointer<Task> mQueue;
+    Task                *mHead = nullptr;
+    Task                *mTail = nullptr;
+    volatile bool        mQuit = false;
     enum class Mode { FAKE, REAL };
     explicit Worker(Mode mode, QObject *parent = 0);
 
-    void    * dptr;
     QThread * wt;
 };
 
