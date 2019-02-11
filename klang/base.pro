@@ -24,13 +24,13 @@ SOURCES += \
     reference.cpp \
     node.cpp \
     context.cpp \
-    context_fin.cpp \
     context_inv.cpp \
     context_queue.cpp \
     file.cpp \
     context_proc.cpp \
     strmap.cpp \
-    context_nm.cpp
+    node_eval.cpp \
+    context_eval.cpp
 
 HEADERS += \
     klang_global.h \

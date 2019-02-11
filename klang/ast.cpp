@@ -57,8 +57,7 @@ namespace {
         int              last_token;
     };
 }
-ASTGenerator::Context::Context(bool parseargs, int vertex)
-    : Tokenizer::Context(parseargs)
+ASTGenerator::Context::Context(int vertex)
 {
     auto p = new ContextP;
     p->current_state = State::ENTRY;
@@ -82,12 +81,12 @@ ASTGenerator::~ASTGenerator()
     delete d;
 }
 
-K::Lang::RC ASTGenerator::iteration(Context *context, const String *s, const InterruptTest &itest)
+K::Lang::RC ASTGenerator::iteration(Context *context, const String *s)
 {
     auto current = (ContextP*)context->d;
     const auto& vertices = d->vertices;
     const auto& edges    = d->edges;
-    while(!itest || itest()) {
+    for(;;) {
         switch(current->current_state)
         {
         case State::VERTEX:
@@ -96,6 +95,8 @@ K::Lang::RC ASTGenerator::iteration(Context *context, const String *s, const Int
              */
             Q_ASSERT(current->current_vertex < vertices.size());
             if (current->current_vertex < 0) {
+                if (current->current_vertex == -2)
+                    return RC::ERROR;
                 if (current->stack.isEmpty()) {
                     if (context->end() < s->string_length) {
                         error("Unexpected tokens at end", context->start(), s->string_length);
@@ -112,7 +113,8 @@ K::Lang::RC ASTGenerator::iteration(Context *context, const String *s, const Int
                 if (rc != RC::CONTINUE)
                     return rc;
             }
-        case State::ENTRY:
+            goto __entry;
+        case State::ENTRY:__entry:
             /*
              * at vertex, get new token and begin searching
              * for edge
@@ -122,7 +124,8 @@ K::Lang::RC ASTGenerator::iteration(Context *context, const String *s, const Int
             current->current_edge = vertices[current->current_vertex].edg;
             current->last_token = tokenize(s, context) ? context->token() : -1;
             current->current_state = State::EDGE;
-        case State::EDGE:
+            goto __edge;
+        case State::EDGE:__edge:
             /*
              * searching for an edge
              */
@@ -158,8 +161,10 @@ K::Lang::RC ASTGenerator::iteration(Context *context, const String *s, const Int
             current->current_vertex = edges[current->current_edge].target;
             if (edges[current->current_edge].push >= 0) {
                 current->stack.push(edges[current->current_edge].push);
-            } else {
+            } else if (edges[current->current_edge].target == -1){
                 current->current_state = State::VERTEX;
+            } else {
+                return RC::ERROR;
             }
             break;
         default:
@@ -246,4 +251,8 @@ int ASTGeneratorPrivate::TOKS(int v, std::initializer_list<int> toks, ASTGenerat
 }
 int ASTGenerator::TOKS(int v, std::initializer_list<int> toks, Callback verify, Callback chk) {
     return d->TOKS(v, toks, verify, chk);
+}
+void ASTGenerator::END(int v, Callback c)
+{
+    d->EDGE(v, -2, -1, c);
 }

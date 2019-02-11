@@ -14,7 +14,7 @@ class Reference;
 class K_LANG_EXPORT Node {
 public:
     enum {
-        INVALID,
+        INVALID=0,
         COMMENT,
         NAMESPACE,
         TYPE,

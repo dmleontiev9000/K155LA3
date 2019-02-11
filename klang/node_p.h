@@ -2,6 +2,7 @@
 
 #include "node.h"
 #include "assetpool.h"
+#include <QEventLoop>
 namespace K {
 namespace Lang {
 
@@ -12,9 +13,17 @@ class Node1 : public Node {
 public:
     Node1(ContextPrivate * ctx);
     ~Node1();
-    
+    bool   isBlocked() const { return mType == BLOCKED; }
+
     void   destroy();
     void   invalidate();
+
+    bool   preevaluate();
+    bool   process(QEventLoop * loop);
+    /*finished: разбор ноды закончен*/
+    bool   isFinished();
+    /*blocked: разбор ноды начат но приостановлен изза неготовности других нод*/
+    bool   isBlockedBy(Node1 * node);
 
     ContextPrivate * mContext;
 
@@ -41,6 +50,7 @@ public:
         invalidate();
     }
     uint         mType;
+    EvalOrder    mQueue;
 
     void   setName(uint start, uint end);
     void   unsetName();
@@ -50,8 +60,8 @@ public:
     Node1     **mNLPrev, *mNLNext;
 
 
-    void   attachToWorkset(Node1 ** workset);
-    void   detachFromWorkset();
+    Node1 *attachToWorkset(Node1 ** workset);
+    Node1 *detachFromWorkset();
     Node1**mWSPrev, *mWSNext;
 
     Node1 * next() const;

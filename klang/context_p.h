@@ -35,8 +35,8 @@ public:
     Node1                          * workset_finalize;
     //invalidation queue
     Node1                          * workset_invalidate;
-    //recheck queue
-    Node1                          * workset_recheck;
+    //determine name of node if possible without wasting resources
+    Node1                          * workset_preeval;
     //processing queues
     //multiple queues are used to minimize number of analyzed elements
     //which are delayed by their dependencies. if elements needs an
@@ -57,7 +57,7 @@ public:
 
     bool process_finalize_workset(QEventLoop * loop);
     bool process_invalidate_workset(QEventLoop * loop);
-    bool process_recheck_workset(QEventLoop * loop);
+    bool process_preevaluate_workset(QEventLoop * loop);
     bool process_queue(QEventLoop * loop);
     bool process_blocked_workset(QEventLoop * loop);
     bool process_totally_blocked(QEventLoop * loop);

@@ -31,7 +31,6 @@ public:
     static IfCore * instance();
 
     virtual const QString& appPath() const = 0;
-    virtual bool           run() = 0;
     virtual void           quit() = 0;
     virtual const QString& errorString() const = 0;
 
@@ -116,13 +115,10 @@ public:
     virtual QThread * thread() const = 0;
     virtual void async(QObject * tag, function<bool ()>&& func) = 0;
     virtual void async(QObject * tag, const function<bool ()>& func) = 0;
-
     virtual void sync(QObject * tag, function<bool ()>&& func) = 0;
     virtual void sync(QObject * tag, const function<bool ()>& func) = 0;
-
     virtual void blocking(QObject * tag, function<bool ()>&& func) = 0;
     virtual void blocking(QObject * tag, const function<bool ()>& func) = 0;
-
     virtual void drop(QObject * tag) = 0;
 protected:
     IfWorker() {}

@@ -30,7 +30,7 @@ ContextPrivate::ContextPrivate(ASTGenerator * gen) {
     
     workset_finalize   = nullptr;
     workset_invalidate = nullptr;
-    workset_recheck    = nullptr;
+    workset_preeval    = nullptr;
     for(int i = 0; i < NUM_QUEUES; ++i) {
         workset_queue[i]   = nullptr;
         workset_waiting[i] = nullptr;

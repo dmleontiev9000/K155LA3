@@ -5,6 +5,7 @@ using namespace K::Lang;
 Node1::Node1(ContextPrivate * ctx) {
     mContext= ctx;
     mType   = INVALID|FORCE_DISABLED;
+    mQueue  = EvalOrder::STMTS;
     mSMEntry = nullptr;
     mWSPrev = &mWSNext;
     mWSNext = nullptr;
@@ -21,6 +22,8 @@ Node1::Node1(ContextPrivate * ctx) {
 Node1::~Node1() {
     if (mIn) mIn->invalidate();
     if (mOut) mOut->destroyList();
+    if (mSMEntry)
+        mContext->strmap->removeNode(this);
     Q_ASSERT(mChild == nullptr);
     Q_ASSERT(mWSPrev == &mWSNext);
     Q_ASSERT(mWSNext == nullptr);
@@ -31,13 +34,14 @@ Node1::~Node1() {
 void   Node1::setName(uint start, uint end) {    
     Q_ASSERT((bool)mText);
     Q_ASSERT(start < end);
-    mContext->strmap.addNode(this, start, end);
+    mContext->strmap->addNode(this, start, end);
 }
 void   Node1::unsetName() {
     if (mSMEntry)
-        mContext->strmap.removeNode(this);
+        mContext->strmap->removeNode(this);
 }
-void   Node1::attachToWorkset(Node1 **workset) {
+Node1 *Node1::attachToWorkset(Node1 **workset) {
+    auto n = mWSNext;
     *mWSPrev = mWSNext;
     if (mWSNext) mWSNext->mWSPrev = mWSPrev;
 
@@ -45,12 +49,15 @@ void   Node1::attachToWorkset(Node1 **workset) {
     mWSNext = *workset;
     if (mWSNext) mWSNext->mWSPrev = &mWSNext;
     *workset = this;
+    return n;
 }
-void   Node1::detachFromWorkset() {
+Node1 *Node1::detachFromWorkset() {
+    auto n = mWSNext;
     *mWSPrev = mWSNext;
     if (mWSNext) mWSNext->mWSPrev = mWSPrev;
     mWSPrev = &mWSNext;
     mWSNext = nullptr;
+    return n;
 }
 Node1* Node1::next() const {
     if (Q_UNLIKELY(!mParent))

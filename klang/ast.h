@@ -19,8 +19,6 @@ public:
         friend class K::Lang::ASTGenerator;
         void * d;
     };
-
-    virtual EvalOrder sort(Node * node) = 0;
     
     typedef K::function<RC ()> Callback;
 
