@@ -14,7 +14,6 @@
 #include <QAbstractButton>
 #include <style.h>
 
-
 namespace K { namespace IDE {
 
 enum class State {
