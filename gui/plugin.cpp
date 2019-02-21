@@ -22,6 +22,7 @@
 #include "../core/utils.h"
 
 using namespace K;
+using namespace K::Core;
 using namespace K::Gui::Internal;
 
 using K::Core::Style;
@@ -176,17 +177,6 @@ void Plugin::__hidePopups() {
     }
     emit hidePopups();
 }
-void Plugin::toggleLeft() {
-    if (mSplitter)
-        return;
-    mLeftPanel->show();
-}
-void Plugin::toggleRight() {
-    if (mSplitter)
-        return;
-    mRightPanel->show();
-}
-
 bool Plugin::eventFilter(QObject * o, QEvent * e) {
     if (e->type() == QEvent::KeyPress ||
         e->type() == QEvent::KeyRelease)
@@ -194,12 +184,10 @@ bool Plugin::eventFilter(QObject * o, QEvent * e) {
         QKeyEvent * ke = static_cast<QKeyEvent*>(e);
         if (ke->key() == Qt::Key_Escape && e->type() == QEvent::KeyRelease)
         {
-            if (mExclusive && !mCentralPanel->isVisible())
+            if (mOverlap)
             {
-                mLeftPanel->popVisibility();
-                mRightPanel->popVisibility();
-                mCentralPanel->show();
-                activateProperOption();
+                activateMode(mPreviousId, false);
+                mOverlap = false;
                 return true;
             }
         }
@@ -219,7 +207,7 @@ bool Plugin::init() {
 
     Style  * style = Style::instance();
 
-    mExclusive = false;
+    mOverlap = false;
 
     mWindow = new MainWidget(this);
     QPalette  pal(QColor(63,63,63));
@@ -261,12 +249,46 @@ bool Plugin::init() {
     mSplitter = new QSplitter;
     hbox->addWidget(mSplitter, 1);
 
-    mLeftPanel = new Internal::Panel(mToolbarHeight, true);
+    mLeftPanel = new Internal::Panel(mToolbarHeight);
     mSplitter->addWidget(mLeftPanel);
-    mCentralPanel = new Internal::Panel(mToolbarHeight, false);
+    mCentralPanel = new Internal::Panel(mToolbarHeight);
     mSplitter->addWidget(mCentralPanel);
-    mRightPanel = new Internal::Panel(mToolbarHeight, true);
+    mRightPanel = new Internal::Panel(mToolbarHeight);
     mSplitter->addWidget(mRightPanel);
+
+    mHideLeft = new QToolButton;
+    mHideLeft->setIcon(getIcon("close"));
+    mLeftPanel->addToolWidget(mHideLeft, false);
+    mHideRight = new QToolButton;
+    mHideRight->setIcon(getIcon("close"));
+    mRightPanel->addToolWidget(mHideRight, false);
+    mShowLeft = new QToolButton;
+    mShowLeft->setIcon(getIcon("show"));
+    mCentralPanel->addToolWidget(mShowLeft, true);
+    mShowRight = new QToolButton;
+    mShowRight->setIcon(getIcon("show"));
+    mCentralPanel->addToolWidget(mShowRight, false);
+    connect(mHideLeft, &QToolButton::clicked, [=] () {
+        mShowLeft->show();
+        mHideLeft->hide();
+        mLeftPanel->setVisibleEx(false);
+    });
+    connect(mHideRight, &QToolButton::clicked, [=]() {
+        mShowRight->show();
+        mHideRight->hide();
+        mRightPanel->setVisibleEx(false);
+    });
+    connect(mShowLeft, &QToolButton::clicked, [=]() {
+        mShowLeft->hide();
+        mHideLeft->show();
+        mLeftPanel->setVisibleEx(true);
+    });
+    connect(mShowRight, &QToolButton::clicked, [=]() {
+        mShowRight->hide();
+        mHideRight->show();
+        mRightPanel->setVisibleEx(true);
+    });
+
     if (!mSplitter->restoreState(mSettings.value("sw_geom").toByteArray()))
         mSplitter->setStretchFactor(1,1);
     connect(mSplitter, &QSplitter::splitterMoved, [=]() {
@@ -277,8 +299,6 @@ bool Plugin::init() {
     mRightPanel->hide();
     mWindow->show();
     mErrorString.clear();
-    connect(mLeftPanel, SIGNAL(hidePanel()), this, SLOT(hideLeft()));
-    connect(mRightPanel, SIGNAL(hidePanel()), this, SLOT(hideRight()));
 
     Q_ASSERT(mSwitchBar->parentWidget() != nullptr);
     Q_ASSERT(mActionBar->parentWidget() != nullptr);
@@ -302,10 +322,6 @@ void Plugin::stop() {
 }
 void Plugin::cleanup() {
     delete mWindow;
-    if (!mSplitter) {
-        delete mLeftPanel;
-        delete mRightPanel;
-    }
     mSplitter       = nullptr;
     mLeftPanel      = nullptr;
     mRightPanel     = nullptr;
@@ -316,7 +332,7 @@ void Plugin::cleanup() {
 /*****************************************
  * user interface api                    *
  *****************************************/
-void Plugin::addMode(QObject       *object,
+void Plugin::addMode(QObject    *object,
                   const QString &iconname,
                   const QString &title,
                   const QString &tooltip,
@@ -365,127 +381,67 @@ void Plugin::removeMode(QObject *object) {
         i = mActions.find(object);
     }
 }
-void Plugin::activateMode(const QString &widgetid, bool exclusive) {
-    bool haveleft = mLeftPanel->setCurrent(widgetid);
-    bool haveright = mRightPanel->setCurrent(widgetid);
-    bool havecenter = mCentralPanel->setCurrent(widgetid);
-
-    //no exclusive mode on tablets
-    if (!mSplitter)
-        exclusive = false;
-
-    if (exclusive) {
-        if (!mExclusive) {
-            mLeftPanel->pushVisibility();
-            mRightPanel->pushVisibility();
-        }
-        if (haveleft) {
-            mLeftPanel->show();
-            mRightPanel->hide();
-            if (mSplitter)
-                mCentralPanel->hide();
-        } else if (haveright) {
-            mLeftPanel->hide();
-            mRightPanel->show();
-            if (mSplitter)
-                mCentralPanel->hide();
-        } else if (havecenter) {
-            mLeftPanel->hide();
-            mRightPanel->hide();
-            mCentralPanel->show();
-        } else {
-            return;
-        }
-        mExclusive = true;
-    } else if (mExclusive) {
-        if (haveleft)
-            mLeftPanel->setVisibility(true);
-        if (haveright)
-            mRightPanel->setVisibility(true);
-        if (havecenter) {
-            mCentralPanel->show();
-            mLeftPanel->popVisibility();
-            mRightPanel->popVisibility();
-            mExclusive = false;
-        }
-    } else {
-        if (haveleft)
-            mLeftPanel->show();
-        if (haveright)
-            mRightPanel->show();
-        if (havecenter)
-            mCentralPanel->show();
-        mExclusive = false;
-    }
-    if (havecenter) {
-        activateProperOption();
-    }
-}
-
-void Plugin::hideMode(const QString &widgetid) {
-    if (!mSplitter) {
-        if (mLeftPanel->isCurrent(widgetid))
-            mLeftPanel->hide();
-        if (mRightPanel->isCurrent(widgetid))
-            mRightPanel->hide();
-    } else if (mExclusive) {
-        if (mLeftPanel->isCurrent(widgetid) ||
-            mRightPanel->isCurrent(widgetid))
-        {
-            mLeftPanel->popVisibility();
-            mRightPanel->popVisibility();
-            mCentralPanel->show();
-            activateProperOption();
-        }
-    }
-}
-
-void Plugin::hideLeft() {
-    if (!mSplitter) {
+void Plugin::activateMode(const QString &widgetid, bool overlap) {
+    mOverlap = overlap;
+    bool exclusive = activateProperOption(widgetid);
+    if (overlap | exclusive) {
+        qDebug()<<"AM "<<widgetid;
+        mShowLeft->hide();
+        mShowRight->hide();
+        mHideLeft->hide();
+        mHideRight->hide();
         mLeftPanel->hide();
-    } else {
-        if (mExclusive) {
-            if (mLeftPanel->isVisible()) {
-                mLeftPanel->popVisibility();
-                mRightPanel->popVisibility();
-                mCentralPanel->show();
-                activateProperOption();
-            } else {
-                mLeftPanel->setVisibility(false);
-            }
-        } else {
-            mLeftPanel->hide();
-        }
-    }
-}
-
-void Plugin::hideRight() {
-    if (!mSplitter) {
         mRightPanel->hide();
+        mCentralPanel->setCurrent(widgetid, overlap);
     } else {
-        if (mExclusive) {
-            if (mRightPanel->isVisible()) {
-                mLeftPanel->popVisibility();
-                mRightPanel->popVisibility();
-                mCentralPanel->show();
-                activateProperOption();
-            } else {
-                mRightPanel->setVisibility(false);
-            }
+        mPreviousId = widgetid;
+        bool left  = mLeftPanel->setCurrent(widgetid, overlap);
+        bool right = mRightPanel->setCurrent(widgetid, overlap);
+        if (left) {
+            mShowLeft->setVisible(!mLeftPanel->actuallyVisible());
+            mHideLeft->setVisible(mLeftPanel->actuallyVisible());
         } else {
-            mRightPanel->hide();
+            mHideLeft->hide();
+            mShowLeft->hide();
         }
+        if (right) {
+            mShowRight->setVisible(!mRightPanel->actuallyVisible());
+            mHideRight->setVisible(mRightPanel->actuallyVisible());
+        } else {
+            mShowRight->hide();
+            mHideRight->hide();
+        }
+        mCentralPanel->setCurrent(widgetid, overlap);
+    }
+}
+void Plugin::hideMode(const QString &widgetid) {
+    if (mLeftPanel->currentId() == widgetid) {
+        mLeftPanel->hide();
+        mHideLeft->hide();
+        mShowLeft->hide();
+    }
+    if (mRightPanel->currentId() == widgetid) {
+        mRightPanel->hide();
+        mHideRight->hide();
+        mShowRight->hide();
+    }
+    if (mCentralPanel->currentId() == widgetid) {
+        mCentralPanel->hide();
+        activateProperOption(QString());
+    }
+    if (mOverlap) {
+        activateMode(mPreviousId, false);
+        mOverlap = false;
     }
 }
 
-void Plugin::activateProperOption() {
-    QString wid = mCentralPanel->currentId();
+bool Plugin::activateProperOption(const QString& wid) {
     for(auto k = mActions.constBegin();
         k != mActions.end(); ++k)
     {
         if (k.value().widgetid == wid) {
             k.value().action->setChecked(true);
-            return;
+            return k.value().exclusive;
         }
     }
 
@@ -495,7 +451,7 @@ void Plugin::activateProperOption() {
     {
         k.value().action->setChecked(false);
     }
-
+    return false;
 }
 
 void Plugin::modeActivated(bool b) {
@@ -504,6 +460,7 @@ void Plugin::modeActivated(bool b) {
     if (!a) return;
     for (auto i = mActions.constBegin(); i != mActions.constEnd(); ++i) {
         if (i.value().action == a) {
+            qDebug()<<"ACT"<<i.value().widgetid<<i.value().exclusive;
             activateMode(i.value().widgetid,
                          i.value().exclusive);
             break;

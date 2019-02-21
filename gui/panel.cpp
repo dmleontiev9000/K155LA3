@@ -7,33 +7,26 @@
 #include <QReadWriteLock>
 using namespace K::Gui::Internal;
 using namespace K::Core;
-Panel::Panel(int tbh, bool hidebutton, QWidget *parent) : QWidget(parent)
+
+Panel::Panel(int tbh, QWidget *parent) : QWidget(parent)
 {
     Style  * style = Style::instance();
     mToolbarHeight = tbh;
     QVBoxLayout * vbox = new QVBoxLayout(this);
     vbox->setSpacing(0);
     vbox->setMargin(0);
+
     mToolbarStack = new QStackedWidget;
     mWidgetStack  = new QStackedWidget;
     Style::instance()->addPanel(mToolbarStack, Style::Toolbar);
-    if (hidebutton) {
-        QHBoxLayout * hbox = new QHBoxLayout;
-        vbox->addLayout(hbox);
-        hbox->addWidget(mToolbarStack, 1);
-        hbox->setMargin(0);
-        hbox->setSpacing(0);
-        QToolButton * close = new QToolButton;
-        style->addPanel(close, Style::Flat);
-        close->setIcon(getIcon("close"));
-        close->setIconSize(QSize(mToolbarHeight-2,mToolbarHeight-2));
-        hbox->addWidget(close);
-        connect(close, SIGNAL(clicked(bool)),
-                this, SIGNAL(hidePanel()));
-    } else {
-        vbox->addWidget(mToolbarStack);
-    }
+
+    QHBoxLayout * hbox = new QHBoxLayout;
+    hbox->addWidget(mToolbarStack, 1);
+    hbox->setMargin(0);
+    hbox->setSpacing(0);
+    vbox->addLayout(hbox);
     vbox->addWidget(mWidgetStack, 1);
+    mToolbarHBox = hbox;
 
     mNullToolbar = new QWidget;
     mNullToolbar->setFixedHeight(mToolbarHeight);
@@ -43,66 +36,72 @@ Panel::Panel(int tbh, bool hidebutton, QWidget *parent) : QWidget(parent)
     mNullWidget  = new QWidget;
     mWidgetStack->addWidget(mNullWidget);
     //style->addPanel(mWidgetStack, K::Core::Style::Reset);
-}
 
+    mCurrent.widget = mNullWidget;
+    mCurrent.toolbar= mNullToolbar;
+    mCurrent.visible= false;
+}
+void Panel::addToolWidget(QToolButton *w, bool first) {
+    Style  * style = Style::instance();
+    style->addPanel(w, Style::Flat);
+    w->setIconSize(QSize(mToolbarHeight-2,mToolbarHeight-2));
+    mToolbarHBox->insertWidget(first ? 0:-1, w);
+}
 void Panel::addWidget(const QString &id, QWidget *w, QWidget *t) {
     WidgetPair wp;
-    wp.toolbar = t;
-    wp.widget  = w;
+    wp.toolbar = t ? t : mNullToolbar;
+    wp.widget  = w ? w : mNullWidget;
+    wp.visible = true;
     mWidgetStack->addWidget(w);
     if (t) mToolbarStack->addWidget(t);
     mWidgets.insert(id, wp);
 }
-bool Panel::setCurrent(const QString &id) {
+bool Panel::setCurrent(const QString &id, bool show) {
     auto i = mWidgets.find(id);
     if (i != mWidgets.end()) {
-        mToolbarStack->setCurrentWidget(i.value().toolbar ?
-                                            i.value().toolbar : mNullToolbar);
-        mWidgetStack->setCurrentWidget(i.value().widget ?
-                                           i.value().widget : mNullWidget);
-        return true;
+        mCurrentId = id;
+        mCurrent = i.value();
+        mCurrent.visible |= show;
+        mToolbarStack->setCurrentWidget(mCurrent.toolbar);
+        mWidgetStack->setCurrentWidget(mCurrent.widget);
+        setVisible(mCurrent.visible);
+    } else if (show) {
+        mCurrentId.clear();
+        mCurrent.widget = mNullWidget;
+        mCurrent.toolbar= mNullToolbar;
+        mCurrent.visible= false;
+        setVisible(mCurrent.visible);
     }
-    return false;
+    return mCurrent.widget != mNullWidget;
 }
 void Panel::removeWidget(const QString &id) {
+    if (id == mCurrentId) {
+        mCurrentId.clear();
+        mCurrent.widget = mNullWidget;
+        mCurrent.toolbar= mNullToolbar;
+        mCurrent.visible= false;
+        mToolbarStack->setCurrentWidget(mNullToolbar);
+        mWidgetStack->setCurrentWidget(mNullWidget);
+        setVisible(false);
+    }
     auto i = mWidgets.find(id);
     if (i != mWidgets.end()) {
-        if (i.value().widget == mWidgetStack->currentWidget()) {
-            mToolbarStack->setCurrentWidget(mNullToolbar);
-            mWidgetStack->setCurrentWidget(mNullWidget);
+        if (i.value().widget != mNullWidget) {
+            mWidgetStack->removeWidget(i.value().widget);
+            delete i.value().widget;
         }
-        mWidgetStack->removeWidget(i.value().widget);
-        if (i.value().toolbar)
+        if (i.value().toolbar != mNullToolbar) {
             mToolbarStack->removeWidget(i.value().toolbar);
-        delete i.value().toolbar;
-        delete i.value().widget;
+            delete i.value().toolbar;
+        }
         mWidgets.erase(i);
     }
 }
-void Panel::pushVisibility() {
-    mSavedVisibility = isVisible();
-}
-void Panel::setVisibility(bool v) {
-    mSavedVisibility = v;
-}
-void Panel::popVisibility() {
-    setVisible(mSavedVisibility);
-}
-bool Panel::isCurrent(const QString &id) {
-    auto i = mWidgets.find(id);
-    if (i != mWidgets.end()) {
-        if (i.value().widget == mWidgetStack->currentWidget())
-            return true;
+void Panel::setVisibleEx(bool v)
+{
+    if (mCurrent.widget != mNullWidget) {
+        mCurrent.visible = v;
+        QWidget::setVisible(v);
     }
-    return false;
 }
-const QString& Panel::currentId() const {
-    static QString empty;
-    QWidget * w = mWidgetStack->currentWidget();
-    for (auto i = mWidgets.constBegin();
-         i != mWidgets.constEnd(); ++i) {
-        if (i.value().widget == w)
-            return i.key();
-    }
-    return empty;
-}
+

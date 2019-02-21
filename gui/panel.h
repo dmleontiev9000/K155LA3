@@ -2,6 +2,8 @@
 
 #include <QWidget>
 #include <QStackedWidget>
+#include <QHBoxLayout>
+#include <QToolButton>
 #include <QHash>
 #include <QPair>
 
@@ -17,28 +19,28 @@ class Panel : public QWidget
 {
     Q_OBJECT
 public:
-    explicit Panel(int tbh, bool hidebutton, QWidget *parent = 0);
+    explicit Panel(int tbh, QWidget *parent = 0);
     void addWidget(const QString& id, QWidget * w, QWidget * t);
     void removeWidget(const QString& id);
-    bool setCurrent(const QString& id);
-    bool isCurrent(const QString& id);
-    void setVisibility(bool);
-    void pushVisibility();
-    void popVisibility();
-    const QString& currentId() const;
-signals:
-    void hidePanel();
+    bool setCurrent(const QString& id, bool show);
+    const QString& currentId() const { return mCurrentId; }
+    void addToolWidget(QToolButton* w, bool first);
+    void setVisibleEx(bool v);
+    bool actuallyVisible() const { return mCurrent.visible; }
 private:
     struct WidgetPair { QWidget * toolbar;
-                        QWidget * widget;};
+                        QWidget * widget;
+                        bool      visible;};
     typedef QHash<QString, WidgetPair> WidgetMap;
     QStackedWidget     * mWidgetStack    = nullptr;
     QStackedWidget     * mToolbarStack   = nullptr;
+    QHBoxLayout        * mToolbarHBox    = nullptr;
     QWidget            * mNullToolbar    = nullptr;
     QWidget            * mNullWidget     = nullptr;
     WidgetMap            mWidgets;
     int                  mToolbarHeight;
-    bool                 mSavedVisibility = false;
+    QString              mCurrentId;
+    WidgetPair           mCurrent;
 };
 
 } //namespace Internal

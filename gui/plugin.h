@@ -73,7 +73,7 @@ public slots:
 
     K_GUI_ACTIVATE_MODE
     void activateMode(const QString& widgetid,
-                      bool exclusive);
+                      bool overlap);
     K_GUI_HIDE_MODE
     void hideMode(const QString& widgetid);
 
@@ -104,10 +104,6 @@ signals:
     void windowPositionChanged(const QVariant& pos);
 private slots:
     void modeActivated(bool);
-    void toggleLeft();
-    void toggleRight();
-    void hideLeft();
-    void hideRight();
 private:
     K_DECLARE_PLUGIN_METHODS
 
@@ -121,14 +117,19 @@ private:
                         bool      exclusive; };
     typedef QHash<QObject*,ActionPair> ActionMap;
 
-    void activateProperOption();
+    bool activateProperOption(const QString& op);
     bool eventFilter(QObject *, QEvent *);
 
     QSplitter          * mSplitter;
     Panel              * mLeftPanel;
     Panel              * mRightPanel;
     Panel              * mCentralPanel;
-    bool                 mExclusive;
+    QToolButton        * mShowLeft;
+    QToolButton        * mHideLeft;
+    QToolButton        * mShowRight;
+    QToolButton        * mHideRight;
+    bool                 mOverlap;
+    QString              mPreviousId;
 
     ActionMap            mActions;
     int                  mModeIndex0;

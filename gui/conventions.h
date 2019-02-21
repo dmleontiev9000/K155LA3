@@ -90,7 +90,7 @@
 
 #  define K_GUI_ACTIVATE_MODE  //сигнал: требует показать рабочий режим
                                //сигнатура: const QString& widgetid
-                               //           bool exclusive
+                               //           bool overlap
 
 #  define K_GUI_HIDE_MODE      //сигнал: требует скрыть рабочий режим
                                //сигнатура: const QString& widgetid
