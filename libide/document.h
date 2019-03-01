@@ -1,6 +1,6 @@
 #pragma once
 
-#include "documents_global.h"
+#include "libide_global.h"
 #include <action.h>
 #include <QObject>
 #include <QIODevice>
@@ -11,7 +11,7 @@ namespace IDE {
 
 class DocumentPrivate;
 
-class DOCUMENTSSHARED_EXPORT Document : public QObject
+class LIBIDESHARED_EXPORT Document : public QObject
 {
     Q_OBJECT
 public:
@@ -49,7 +49,7 @@ public:
     const QIcon& getIcon() const;
     void setIcon(const QIcon& icon);
 
-    virtual const QStringList& editorIds() = 0;
+    virtual const QStringList& editorIds() const = 0;
 protected:
     //IO=================
     virtual bool makeSnapshot();

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "documents_global.h"
+#include "libide_global.h"
 #include "document.h"
 #include <QAbstractListModel>
 

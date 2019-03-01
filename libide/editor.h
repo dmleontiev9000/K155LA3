@@ -1,6 +1,6 @@
 #pragma once
 
-#include "documents_global.h"
+#include "libide_global.h"
 #include "editordocumentmodel.h"
 #include <QWidget>
 #include <QHBoxLayout>
@@ -10,7 +10,7 @@ namespace IDE {
 
 class Document;
 class EditorPrivate;
-class DOCUMENTSSHARED_EXPORT Editor : public QWidget
+class LIBIDESHARED_EXPORT Editor : public QWidget
 {
     Q_OBJECT
 protected:

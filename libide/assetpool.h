@@ -1,6 +1,6 @@
 #pragma once
 
-#include "editutils_global.h"
+#include "libide_global.h"
 #include "../core/compat.h"
 #include <QThread>
 #include <QMutex>
@@ -12,7 +12,7 @@ class AssetPool;
 class Element;
 
 template <class U>
-class EDITUTILSSHARED_EXPORT ElementPtr {
+class LIBIDESHARED_EXPORT ElementPtr {
 public:
     ElementPtr() { u = nullptr; }
     ElementPtr(U * pu) { u = pu; if (pu) pu->handle = (Element**)&u; }
@@ -24,17 +24,23 @@ public:
     ~ElementPtr() { if (u) u->dispose(); }
 
     U * get() const { return u; }
+    void set(U * nu) {
+        if (u) u->dispose();
+        u = nu;
+        if (nu) nu->handle = (Element**)&u;
+    }
     U * take() const { if (u) u->handle = nullptr; auto c = u; u = nullptr; return c; }
     U * operator ->() {return u;}
     operator bool() const { return u != nullptr; }
     bool operator !() const { return u == nullptr; }
+    void clear() { if (u) u->dispose(); u = nullptr; }
 private:
     ElementPtr(const ElementPtr&) = delete;
     ElementPtr& operator =(const ElementPtr&) = delete;
     U * u;
 };
 
-struct EDITUTILSSHARED_EXPORT Element
+struct LIBIDESHARED_EXPORT Element
 {
 private:
     friend class AssetPool;
@@ -42,13 +48,20 @@ private:
     std::uint32_t magic;
     std::uint32_t memsize;
     Element     **handle;
-    Element() {}
-    ~Element() {}
 public:
     void dispose();
+protected:
+    Element() {}
+    ~Element() {}
+};
+template <class T>
+struct LIBIDESHARED_EXPORT Container : public Element
+{
+    T t;
+    void destroy() { t.~T(); dispose(); }
 };
 
-class EDITUTILSSHARED_EXPORT AssetPool : public QThread {
+class LIBIDESHARED_EXPORT AssetPool : public QThread {
 public:
     enum : unsigned {
         LIVEMAGIC = 0x34353637,

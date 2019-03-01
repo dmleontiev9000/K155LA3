@@ -8,7 +8,7 @@ namespace K {
 namespace IDE {
 
 class OpenedDocumentModelPrivate;
-class DOCUMENTSSHARED_EXPORT OpenedDocumentModel
+class LIBIDESHARED_EXPORT OpenedDocumentModel
         : public QAbstractItemModel
 {
 public:

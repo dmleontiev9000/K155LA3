@@ -8,7 +8,7 @@ namespace K {
 namespace IDE {
 
 class BookmarkModelPrivate;
-class DOCUMENTSSHARED_EXPORT BookmarkModel
+class LIBIDESHARED_EXPORT BookmarkModel
         : public QAbstractListModel
 {
 public:
